@@ -84,6 +84,7 @@ Matrix zeroMatrix(int n) {
     return zeroMatrix(n, n);
 }
 
+// A[row:row+rows-1][col:col+cols-1]
 Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols) {
     Matrix R = zeroMatrix(rows, cols);
     for (int i = 0; i < rows; ++i)
@@ -92,6 +93,7 @@ Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols) {
     return R;
 }
 
+// A + B
 Matrix addMatrix(const Matrix &A, const Matrix &B) {
     int rows = static_cast<int>(A.size());
     int cols = rows ? static_cast<int>(A[0].size()) : 0;
@@ -105,6 +107,21 @@ Matrix addMatrix(const Matrix &A, const Matrix &B) {
     return R;
 }
 
+// A - B
+Matrix subtractMatrix(const Matrix &A, const Matrix &B) {
+    int rows = static_cast<int>(A.size());
+    int cols = rows ? static_cast<int>(A[0].size()) : 0;
+    Matrix R = zeroMatrix(rows, cols);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            R[i][j] = A[i][j] - B[i][j];
+            ++g_subs;
+        }
+    }
+    return R;
+}
+
+// A * B
 Matrix multiplyClassic(const Matrix &A, const Matrix &B) {
     int p = static_cast<int>(A.size());
     int q = p ? static_cast<int>(A[0].size()) : 0;

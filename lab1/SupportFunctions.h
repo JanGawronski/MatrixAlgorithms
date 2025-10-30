@@ -12,6 +12,7 @@ Matrix zeroMatrix(int rows, int cols);
 Matrix zeroMatrix(int n);
 Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols);
 Matrix addMatrix(const Matrix &A, const Matrix &B);
+Matrix subtractMatrix(const Matrix &A, const Matrix &B);
 Matrix multiplyClassic(const Matrix &A, const Matrix &B);
 
 // Op counter
