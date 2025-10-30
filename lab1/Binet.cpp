@@ -49,7 +49,7 @@ Matrix multiplyRec(const Matrix &A, const Matrix &B) {
     // account memory for this call (result p x r)
     memCounterEnterCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
 
-    const int BASE = 64;
+    const int BASE = 4;
     if (p == 0 || q == 0 || r == 0) {
         Matrix Z = zeroMatrix(p, r);
         memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
