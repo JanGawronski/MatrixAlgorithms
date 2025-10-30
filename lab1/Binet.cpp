@@ -49,14 +49,14 @@ Matrix multiplyRec(const Matrix &A, const Matrix &B) {
     // account memory for this call (result p x r)
     memCounterEnterCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
 
-    const int BASE = 4;
+    const int BASE = 1;
     if (p == 0 || q == 0 || r == 0) {
         Matrix Z = zeroMatrix(p, r);
         memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
         return Z;
     }
     if (std::max({p, q, r}) <= BASE) {
-        Matrix res = multiplyClassic(A, B);
+        Matrix res = A * B;
         memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
         return res;
     }
@@ -90,7 +90,7 @@ Matrix multiplyRec(const Matrix &A, const Matrix &B) {
         Matrix B_bot = subMatrix(B, q1, 0, q2, r);
         Matrix P1 = multiplyRec(A_left, B_top);
         Matrix P2 = multiplyRec(A_right, B_bot);
-        Matrix R = addMatrix(P1, P2);
+        Matrix R = P1 + P2;
         memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
         return R;
     }

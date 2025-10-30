@@ -129,16 +129,18 @@ int main(int argc, char** argv) {
         std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
     }
 
-    if (N <= 8 && verbose) {
-        std::cout << "A:\n"; printSmall(A);
-        std::cout << "B:\n"; printSmall(B);
-        std::cout << "C = A * B:\n"; printSmall(C);
-        Matrix C_ref = multiplyClassic(A, B);
-        Matrix diff = subtractMatrix(C, C_ref);
-        std::cout << "C - C_ref:\n"; printSmall(diff);
-    } else {
-        std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
-        std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
+    if (verbose) {
+        if (N <= 8) {
+            std::cout << "A:\n"; printSmall(A);
+            std::cout << "B:\n"; printSmall(B);
+            std::cout << "C = A * B:\n"; printSmall(C);
+            Matrix C_ref = A * B;
+            Matrix diff = C - C_ref;
+            std::cout << "C - C_ref:\n"; printSmall(diff);
+        } else {
+            std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
+            std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
+        }
     }
 
     return 0;
