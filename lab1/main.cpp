@@ -11,6 +11,7 @@
 #include "SupportFunctions.h"
 #include "Mnozenie.h"
 #include "Binet.h"   // fabryka createBinet()
+#include "Strassen.h"
 
 int main(int argc, char** argv) {
     bool batchMode = (argc >= 2);
@@ -62,17 +63,27 @@ int main(int argc, char** argv) {
 
         std::cout << "Wybierz metode:\n";
         std::cout << "1) Binet (rekurencyjnie bez padowania)\n";
-        std::cout << "2) (placeholder) inna metoda\n";
+        std::cout << "2) Strassen\n";
+        std::cout << "3) AI\n";
         std::cout << "Wybor (domyslnie 1): ";
         if (!(std::cin >> choice)) choice = 1;
     }
 
     std::unique_ptr<IMnozenie> impl;
-    if (choice == 1) {
-        impl = createBinet();
-    } else {
-        std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
-        impl = createBinet();
+    switch (choice) {
+        case 1:
+            impl = createBinet();
+            break;
+        case 2:
+            impl = createStrassen();
+            break;
+        case 3:
+            std::cerr << "Metoda AI niezaimplementowana. Uzywam Binet (1).\n";
+            impl = createBinet();
+            break;
+        default:
+            std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
+            impl = createBinet();
     }
 
     const bool verbose = !batchMode;
