@@ -124,6 +124,11 @@ int main(int argc, char** argv) {
     auto A = createRandomMatrix(N);
     auto B = createRandomMatrix(N);
 
+    if (choice == 3) {
+        A = createRandomMatrix(4, 5);
+        B = createRandomMatrix(5, 5);        
+    }
+
     opCounterReset();
     memCounterReset();
     auto t0 = std::chrono::high_resolution_clock::now();

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdint>
 
+Matrix createRandomMatrix(int m, int n);
 Matrix createRandomMatrix(int n);
 void printSmall(const Matrix& M);
 

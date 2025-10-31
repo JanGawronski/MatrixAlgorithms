@@ -57,16 +57,22 @@ MemStats memCounterGet() {
     return MemStats{g_mem_current, g_mem_peak, g_active_calls, g_peak_calls};
 }
 
-Matrix createRandomMatrix(int n) {
-    Matrix M(n, std::vector<double>(n));
+Matrix createRandomMatrix(int m, int n) {
+    Matrix M(m, std::vector<double>(n));
     std::mt19937_64 rng(std::random_device{}());
     // open interval (1e-8, 1.0) approximated by avoiding exact endpoints
     std::uniform_real_distribution<double> dist(1e-8 + 1e-16, 1.0 - 1e-16);
-    for (int i = 0; i < n; ++i)
+
+    for (int i = 0; i < m; ++i)
         for (int j = 0; j < n; ++j)
             M[i][j] = dist(rng);
     return M;
 }
+
+Matrix createRandomMatrix(int n) {
+    return createRandomMatrix(n, n);
+}
+
 
 void printSmall(const Matrix& M) {
     for (size_t i = 0; i < M.size(); ++i) {
