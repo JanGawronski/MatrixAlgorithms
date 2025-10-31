@@ -93,6 +93,34 @@ Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols) {
     return R;
 }
 
+Matrix combine(const Matrix &A11, const Matrix &A12,
+               const Matrix &A21, const Matrix &A22) {
+    int A11rows = static_cast<int>(A11.size());
+    int A12rows = static_cast<int>(A12.size());
+    int A11cols = A11rows ? static_cast<int>(A11[0].size()) : 0;
+    int A12cols = A12.size() ? static_cast<int>(A12[0].size()) : 0;
+    int A21rows = A21.size();
+    int A22rows = A22.size();
+    Matrix A = zeroMatrix(A11rows + A21rows, A11cols + A12cols);
+    for (int i = 0; i < A11rows; i++)
+        for (int j = 0; j < A11cols; j++)
+            A[i][j] = A11[i][j];
+
+    for (int i = 0; i < A12rows; i++)
+        for (int j = 0; j < A12cols; j++)
+            A[i][j + A11cols] = A12[i][j];
+
+    for (int i = 0; i < A21rows; i++)
+        for (int j = 0; j < A11cols; j++)
+            A[i + A11rows][j] = A21[i][j];
+
+    for (int i = 0; i < A22rows; i++)
+        for (int j = 0; j < A12cols; j++)
+            A[i + A11rows][j + A11cols] = A22[i][j];
+
+    return A;
+}
+
 Matrix operator+(const Matrix &A, const Matrix &B) {
     int rows = static_cast<int>(A.size());
     int cols = rows ? static_cast<int>(A[0].size()) : 0;

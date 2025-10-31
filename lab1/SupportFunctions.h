@@ -14,7 +14,9 @@ Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols);
 Matrix operator+(const Matrix &A, const Matrix &B);
 Matrix operator-(const Matrix &A, const Matrix &B);
 Matrix operator*(const Matrix &A, const Matrix &B);
-
+Matrix combine(const Matrix &A11, const Matrix &A12,
+               const Matrix &A21, const Matrix &A22);
+               
 // Op counter
 struct OpCounts {
     std::uint64_t adds = 0;

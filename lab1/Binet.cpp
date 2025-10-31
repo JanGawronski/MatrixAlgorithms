@@ -6,100 +6,60 @@
 #include <memory>
 #include <vector>
 
-// wszystkie pomocnicze funkcje i symbole o zasięgu pliku
 namespace {
 
-using Matrix = ::Matrix; // użyj aliasu zdefiniowanego w Mnozenie.h
+using Matrix = ::Matrix;
 
-Matrix combineVertical(const Matrix &top, const Matrix &bottom) {
-    int topR = static_cast<int>(top.size()), botR = static_cast<int>(bottom.size());
-    int cols = topR ? static_cast<int>(top[0].size()) : (botR ? static_cast<int>(bottom[0].size()) : 0);
-    Matrix R = zeroMatrix(topR + botR, cols);
-    for (int i = 0; i < topR; ++i)
-        for (int j = 0; j < cols; ++j)
-            R[i][j] = top[i][j];
-    for (int i = 0; i < botR; ++i)
-        for (int j = 0; j < cols; ++j)
-            R[topR + i][j] = bottom[i][j];
-    return R;
-}
-
-Matrix combineHorizontal(const Matrix &left, const Matrix &right) {
-    int rows = static_cast<int>(left.size());
-    int leftC = rows ? static_cast<int>(left[0].size()) : 0;
-    int rightC = rows ? static_cast<int>(right[0].size()) : 0;
-    Matrix R = zeroMatrix(rows, leftC + rightC);
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < leftC; ++j) R[i][j] = left[i][j];
-        for (int j = 0; j < rightC; ++j) R[i][leftC + j] = right[i][j];
-    }
-    return R;
-}
-
-// rekurencyjne mnożenie (bez pad'owania) - dzieli po największym wymiarze
 Matrix multiplyRec(const Matrix &A, const Matrix &B) {
-    int p = static_cast<int>(A.size());
-    int q = p ? static_cast<int>(A[0].size()) : 0; // A is p x q
-    int qb = static_cast<int>(B.size());           // B is qb x r
-    int r = qb ? static_cast<int>(B[0].size()) : 0;
-    if (q != qb) {
+    int Arows = static_cast<int>(A.size());
+    int Acols = Arows ? static_cast<int>(A[0].size()) : 0;
+    int Brows = static_cast<int>(B.size());
+    int Bcols = Brows ? static_cast<int>(B[0].size()) : 0;
+    if (Acols != Brows) {
         throw std::runtime_error("Incompatible dimensions for multiplication");
     }
 
-    // account memory for this call (result p x r)
-    memCounterEnterCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
 
-    const int BASE = 1;
-    if (p == 0 || q == 0 || r == 0) {
-        Matrix Z = zeroMatrix(p, r);
-        memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
-        return Z;
-    }
-    if (std::max({p, q, r}) <= BASE) {
-        Matrix res = A * B;
-        memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
-        return res;
+    memCounterEnterCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+
+    if (Arows == 1 || Acols == 1 || Bcols == 1) {
+        Matrix M = A * B;
+        memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+        return M;
     }
 
-    if (p >= std::max(q, r)) {
-        int p1 = p / 2;
-        int p2 = p - p1;
-        Matrix A_top = subMatrix(A, 0, 0, p1, q);
-        Matrix A_bot = subMatrix(A, p1, 0, p2, q);
-        Matrix C_top = multiplyRec(A_top, B);
-        Matrix C_bot = multiplyRec(A_bot, B);
-        Matrix R = combineVertical(C_top, C_bot);
-        memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
-        return R;
-    } else if (r >= std::max(p, q)) {
-        int r1 = r / 2;
-        int r2 = r - r1;
-        Matrix B_left = subMatrix(B, 0, 0, q, r1);
-        Matrix B_right = subMatrix(B, 0, r1, q, r2);
-        Matrix C_left = multiplyRec(A, B_left);
-        Matrix C_right = multiplyRec(A, B_right);
-        Matrix R = combineHorizontal(C_left, C_right);
-        memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
-        return R;
-    } else {
-        int q1 = q / 2;
-        int q2 = q - q1;
-        Matrix A_left = subMatrix(A, 0, 0, p, q1);
-        Matrix A_right = subMatrix(A, 0, q1, p, q2);
-        Matrix B_top = subMatrix(B, 0, 0, q1, r);
-        Matrix B_bot = subMatrix(B, q1, 0, q2, r);
-        Matrix P1 = multiplyRec(A_left, B_top);
-        Matrix P2 = multiplyRec(A_right, B_bot);
-        Matrix R = P1 + P2;
-        memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
-        return R;
-    }
+    int A11width = Acols / 2;
+    int A12width = Acols - A11width;
+    int A11height = Arows / 2;
+    int A21height = Arows - A11height;
+
+    int B11width = Bcols / 2;
+    int B12width = Bcols - B11width;
+    
+    Matrix A11 = subMatrix(A, 0, 0, A11height, A11width);
+    Matrix A12 = subMatrix(A, 0, A11width, A11height, A12width);
+    Matrix A21 = subMatrix(A, A11height, 0, A21height, A11width);
+    Matrix A22 = subMatrix(A, A11height, A11width, A21height, A12width);
+
+    Matrix B11 = subMatrix(B, 0, 0, A11width, B11width);
+    Matrix B12 = subMatrix(B, 0, B11width, A11width, B12width);
+    Matrix B21 = subMatrix(B, A11width, 0, A12width, B11width);
+    Matrix B22 = subMatrix(B, A11width, B11width, A12width, B12width);
+
+    Matrix C11 = multiplyRec(A11, B11) + multiplyRec(A12, B21);
+    Matrix C12 = multiplyRec(A11, B12) + multiplyRec(A12, B22);
+    Matrix C21 = multiplyRec(A21, B11) + multiplyRec(A22, B21);
+    Matrix C22 = multiplyRec(A21, B12) + multiplyRec(A22, B22);
+
+    Matrix M = combine(C11, C12, C21, C22);
+
+    memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+    return M;
 }
 
 } // namespace (internal)
 
 
-// IMnozenie implementation hidden in this translation unit
 class BinetImpl : public IMnozenie {
 public:
     Matrix multiply(const Matrix &A, const Matrix &B) override {
