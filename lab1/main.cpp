@@ -10,8 +10,9 @@
 
 #include "SupportFunctions.h"
 #include "Mnozenie.h"
-#include "Binet.h"   // fabryka createBinet()
+#include "Binet.h"
 #include "Strassen.h"
+#include "AI.h"
 
 int main(int argc, char** argv) {
     bool batchMode = (argc >= 2);
@@ -78,8 +79,7 @@ int main(int argc, char** argv) {
             impl = createStrassen();
             break;
         case 3:
-            std::cerr << "Metoda AI niezaimplementowana. Uzywam Binet (1).\n";
-            impl = createBinet();
+            impl = createAI();
             break;
         default:
             std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
