@@ -177,3 +177,20 @@ Matrix operator*(const Matrix &A, const Matrix &B) {
     memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
     return C;
 }
+
+std::pair<bool,double> compareMatrices(const Matrix& X, const Matrix& Y, double tol) {
+    if (X.size() != Y.size()) return {false, std::numeric_limits<double>::infinity()};
+    int m = static_cast<int>(X.size());
+    if (m == 0) return {true, 0.0};
+    if (X[0].size() != Y[0].size()) return {false, std::numeric_limits<double>::infinity()};
+    int n = static_cast<int>(X[0].size());
+    double maxDiff = 0.0;
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            double d = std::abs(X[i][j] - Y[i][j]);
+            if (d > maxDiff) maxDiff = d;
+            if (maxDiff > tol) return {false, maxDiff};
+        }
+    }
+    return {true, maxDiff};
+}

@@ -17,6 +17,7 @@ Matrix operator-(const Matrix &A, const Matrix &B);
 Matrix operator*(const Matrix &A, const Matrix &B);
 Matrix combine(const Matrix &A11, const Matrix &A12,
                const Matrix &A21, const Matrix &A22);
+std::pair<bool,double> compareMatrices(const Matrix& X, const Matrix& Y, double tol = 1e-9);
                
 // Op counter
 struct OpCounts {

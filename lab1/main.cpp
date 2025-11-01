@@ -15,12 +15,9 @@
 #include "AI.h"
 
 int main(int argc, char** argv) {
-    bool batchMode = (argc >= 2);
-    std::vector<int> sizes;
-
-    int choice = 1; // domyślna metoda
-
-    if (batchMode) {
+    if (argc >= 2) { //batch mode
+        std::vector<int> sizes;
+        int choice = 1; // default choice
         std::string path = argv[1];
         std::ifstream in(path);
         if (!in.is_open()) {
@@ -51,44 +48,20 @@ int main(int argc, char** argv) {
         } else {
             choice = 1;
         }
-    }
 
-    if (!batchMode) {
-        std::cout << "Podaj rozmiar macierzy N (NxN): ";
-        int N;
-        if (!(std::cin >> N) || N <= 0) {
-            std::cerr << "Niepoprawny rozmiar.\n";
-            return 1;
+        std::unique_ptr<IMnozenie> impl;
+        switch (choice) {
+            case 1:
+                impl = createBinet();
+                break;
+            case 2:
+                impl = createStrassen();
+                break;
+            default:
+                std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
+                impl = createBinet();
         }
-        sizes.push_back(N);
 
-        std::cout << "Wybierz metode:\n";
-        std::cout << "1) Binet (rekurencyjnie bez padowania)\n";
-        std::cout << "2) Strassen\n";
-        std::cout << "3) AI\n";
-        std::cout << "Wybor (domyslnie 1): ";
-        if (!(std::cin >> choice)) choice = 1;
-    }
-
-    std::unique_ptr<IMnozenie> impl;
-    switch (choice) {
-        case 1:
-            impl = createBinet();
-            break;
-        case 2:
-            impl = createStrassen();
-            break;
-        case 3:
-            impl = createAI();
-            break;
-        default:
-            std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
-            impl = createBinet();
-    }
-
-    const bool verbose = !batchMode;
-
-    if (batchMode) {
         std::ofstream out("wynik.txt");
         if (!out.is_open()) {
             std::cerr << "Nie mozna utworzyc pliku wynik.txt\n";
@@ -117,46 +90,78 @@ int main(int argc, char** argv) {
                 << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
         }
         out.close();
-        return 0;
-    }
+    } else {
+        std::cout << "Podaj rozmiar macierzy N (NxN): ";
+        int N;
+        if (!(std::cin >> N) || N <= 0) {
+            std::cerr << "Niepoprawny rozmiar.\n";
+            return 1;
+        }
 
-    int N = sizes[0];
-    auto A = createRandomMatrix(N);
-    auto B = createRandomMatrix(N);
+        int choice;
+        std::cout << "Wybierz metode:\n";
+        std::cout << "1) Binet (rekurencyjnie bez padowania)\n";
+        std::cout << "2) Strassen\n";
+        std::cout << "3) AI\n";
+        std::cout << "Wybor (domyslnie 1): ";
+        if (!(std::cin >> choice)) choice = 1;
 
-    if (choice == 3) {
-        A = createRandomMatrix(4, 5);
-        B = createRandomMatrix(5, 5);        
-    }
+        std::unique_ptr<IMnozenie> impl;
+        switch (choice) {
+            case 1:
+                impl = createBinet();
+                break;
+            case 2:
+                impl = createStrassen();
+                break;
+            case 3:
+                impl = createAI();
+                break;
+            default:
+                std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
+                impl = createBinet();
+        }
+    
+        auto A = createRandomMatrix(N);
+        auto B = createRandomMatrix(N);
 
-    opCounterReset();
-    memCounterReset();
-    auto t0 = std::chrono::high_resolution_clock::now();
-    Matrix C = impl->multiply(A, B);
-    auto t1 = std::chrono::high_resolution_clock::now();
-    OpCounts ops = opCounterGet();
-    MemStats ms = memCounterGet();
-    std::chrono::duration<double> elapsed = t1 - t0;
+        if (choice == 3) {
+            A = createRandomMatrix(4, 5);
+            B = createRandomMatrix(5, 5);        
+        }
 
-    if (verbose) {
+        opCounterReset();
+        memCounterReset();
+        auto t0 = std::chrono::high_resolution_clock::now();
+        Matrix C = impl->multiply(A, B);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        OpCounts ops = opCounterGet();
+        MemStats ms = memCounterGet();
+        std::chrono::duration<double> elapsed = t1 - t0;
+
         std::cout << "Czas (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
         std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
-                  << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
+                    << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
         std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
-    }
 
-    if (verbose) {
-        if (N <= 8) {
+        if (N <= 12) {
             std::cout << "A:\n"; printSmall(A);
             std::cout << "B:\n"; printSmall(B);
             std::cout << "C = A * B:\n"; printSmall(C);
             Matrix C_ref = A * B;
             Matrix diff = C - C_ref;
             std::cout << "C - C_ref:\n"; printSmall(diff);
+            auto [ok, maxdiff] = compareMatrices(C, C_ref, 1e-9);
+            if (ok) {
+                std::cout << "Macierze zgodne (roznica max " << std::setprecision(12) << maxdiff << ")\n";
+            } else {
+                std::cout << "Macierze NIEZGODNE! (roznica max " << std::setprecision(12) << maxdiff << ")\n";
+            }
         } else {
             std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
             std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
         }
+
     }
 
     return 0;
