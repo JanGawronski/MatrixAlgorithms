@@ -77,7 +77,7 @@ Matrix createRandomMatrix(int n) {
 void printSmall(const Matrix& M) {
     for (size_t i = 0; i < M.size(); ++i) {
         for (size_t j = 0; j < M[i].size(); ++j)
-            std::cout << std::setw(12) << M[i][j];
+            std::cout << std::setprecision(6) << std::setw(12) << M[i][j];
         std::cout << '\n';
     }
 }

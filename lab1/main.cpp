@@ -144,19 +144,19 @@ int main(int argc, char** argv) {
                     << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
         std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
 
+        Matrix C_ref = A * B;
+        auto [ok, maxdiff] = compareMatrices(C, C_ref, 1e-9);
+        if (ok) {
+            std::cout << "Macierze zgodne (roznica max " << std::setprecision(12) << maxdiff << ")\n";
+        } else {
+            std::cout << "Macierze NIEZGODNE! (roznica max " << std::setprecision(12) << maxdiff << ")\n";
+        }
+        
         if (N <= 12) {
             std::cout << "A:\n"; printSmall(A);
             std::cout << "B:\n"; printSmall(B);
             std::cout << "C = A * B:\n"; printSmall(C);
-            Matrix C_ref = A * B;
-            Matrix diff = C - C_ref;
-            std::cout << "C - C_ref:\n"; printSmall(diff);
-            auto [ok, maxdiff] = compareMatrices(C, C_ref, 1e-9);
-            if (ok) {
-                std::cout << "Macierze zgodne (roznica max " << std::setprecision(12) << maxdiff << ")\n";
-            } else {
-                std::cout << "Macierze NIEZGODNE! (roznica max " << std::setprecision(12) << maxdiff << ")\n";
-            }
+            std::cout << "C - C_ref:\n"; printSmall(C - C_ref);
         } else {
             std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
             std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
