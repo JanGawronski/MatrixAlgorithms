@@ -173,6 +173,7 @@ Matrix operator*(const Matrix &A, const Matrix &B) {
             }
         }
     }
+    g_adds -= p * r;
 
     memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
     return C;
