@@ -1,0 +1,1335 @@
+#include "AI.h"
+#include "SupportFunctions.h"
+
+#include <stdexcept>
+#include <array>
+#include <cmath>
+
+Matrix AI::multiply(const Matrix& A, const Matrix& B) {
+    int p = static_cast<int>(A.size());                     // rows of A
+    int q = p ? static_cast<int>(A[0].size()) : 0;          // cols of A
+    int qb = static_cast<int>(B.size());                    // rows of B
+    int r = qb ? static_cast<int>(B[0].size()) : 0;         // cols of B
+    if (q != qb) throw std::runtime_error("Incompatible dimensions for AI::multiply");
+
+
+    if (!(p == 4 && q == 5 && r == 5)) {
+        throw std::runtime_error("AI::multiply supports only 4x5 * 5x5 matrices");
+    }
+
+    // account memory for this 4x5 result
+    memCounterEnterCall(4,5);
+
+    // prepare h[1..76] (1-based indexing)
+    std::array<double, 77> h{};
+    OpCounts local_ops{0,0,0,0};
+
+    // --- h1..h75 (same formulas as reference) ---
+    // Note: formulas refer only to A rows 0..3 and columns 0..4 (4x5 A) and B 5x5.
+    // (Copied from reference; keep ops counting consistent.)
+    {////////////////
+        double s = - B[1][0] - B[1][4] - B[2][0];
+        local_ops.subs += 3;
+        h[1] = A[2][1] * s; local_ops.muls += 1;
+    }
+
+    {//////////////////
+        double sA = A[1][1] + A[1][4] - A[2][4];
+        local_ops.adds += 2; local_ops.subs += 1;
+        double sB = - B[1][4] - B[4][0];
+        local_ops.subs += 2;
+        h[2] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////////////
+        double sA = -A[2][0] - A[3][0] + A[3][1];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = -B[0][0] + B[1][4];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[3] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////////
+        double sA = A[0][1] + A[0][3] + A[2][3];
+        local_ops.adds += 2;
+        double sB = -B[1][4] - B[3][0];
+        local_ops.subs += 2;
+        h[4] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////////
+        double sA = A[0][4] + A[1][1] + A[1][4];
+        local_ops.adds += 2;
+        double sB = -B[1][3] + B[4][0];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[5] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////
+        double sA = -A[1][1] - A[1][4] - A[3][4];
+        local_ops.subs += 3;
+        double sB = B[1][2] + B[4][0];
+        local_ops.adds += 1;
+        h[6] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////////
+        double sA = -A[0][0] + A[3][0] - A[3][1];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = B[0][0] + B[1][3];
+        local_ops.adds += 1;
+        h[7] = sA * sB; local_ops.muls += 1;
+    }
+
+    {/////////////////
+        double sA = A[2][1] - A[2][2] - A[3][2];
+        local_ops.subs += 2;
+        double sB = -B[1][2] + B[2][0];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[8] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////
+        double sA = -A[0][1] - A[0][3] + A[3][3];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = B[1][2] + B[3][0];
+        local_ops.adds += 1;
+        h[9] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////////
+        double sA = A[1][1] + A[1][4];
+        local_ops.adds += 1;
+        h[10] = sA * B[4][0]; local_ops.muls += 1;
+    }
+
+    {////////////
+        double sA = -A[1][0] - A[3][0] + A[3][1];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = -B[0][0] + B[1][1];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[11] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////
+        double sA = A[3][0] - A[3][1];
+        local_ops.subs += 1;
+        h[12] = sA * B[0][0]; local_ops.muls += 1;
+    }
+
+    {////////////////
+        double sA = A[0][1] + A[0][3] + A[1][3];
+        local_ops.adds += 2;
+        double sB = B[1][1] + B[3][0];
+        local_ops.adds += 1;
+        h[13] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////////////
+        double sA = A[0][2] - A[2][1] + A[2][2];
+        local_ops.subs += 1; local_ops.adds += 1;
+        double sB = B[1][3] + B[2][0];
+        local_ops.adds += 1;
+        h[14] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////////
+        double sA = -A[0][1] - A[0][3];
+        local_ops.subs += 2;
+        h[15] = sA * B[3][0]; local_ops.muls += 1;
+    }
+
+    {/////////////
+        double sA = -A[2][1] + A[2][2];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[16] = sA * B[2][0]; local_ops.muls += 1;
+    }
+
+    {//////////////
+        double sA = A[0][1] + A[0][3] - A[1][0] + A[1][1] - A[1][2] + A[1][3] - A[2][1] + A[2][2] - A[3][0] + A[3][1];
+        local_ops.adds += 6; local_ops.subs += 4;
+        h[17] = sA * B[1][1]; local_ops.muls += 1;
+    }
+
+    {//////////////
+        double s = B[0][0] + B[0][1] + B[4][1];
+        local_ops.adds += 2;
+        h[18] = A[1][0] * s; local_ops.muls += 1;
+    }
+
+    {/////////////
+        double s = B[2][0] + B[2][1] + B[4][1];
+        local_ops.adds += 2;
+        h[19] = - A[1][2] * s; local_ops.muls += 1;
+    }
+
+    {//////////////////////
+        double sA = -A[0][4] + A[1][0] + A[1][2] - A[1][4];
+        local_ops.subs += 2; local_ops.adds += 2;
+        double sB = -B[0][0] - B[0][1] + B[0][3] - B[4][1];
+        local_ops.subs += 3; local_ops.adds += 1;
+        h[20] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////////
+        double sA = A[1][0] + A[1][2] - A[1][4];
+        local_ops.adds += 1; local_ops.subs += 1;
+        h[21] = sA * B[4][1]; local_ops.muls += 1;
+    }
+
+    {///////////////////
+        double sA = A[0][2] - A[0][3] - A[1][3];
+        local_ops.subs += 2;
+        double sB = B[0][0] + B[0][1] - B[0][3] - B[2][0] - B[2][1] + B[2][3] + B[3][3];
+        local_ops.adds += 3; local_ops.subs += 3;
+        h[22] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////////
+        double s = -B[2][0] + B[2][3] + B[3][3];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[23] = A[0][2] * s; local_ops.muls += 1;
+    }
+
+    {///////////////////////
+        double s = -B[3][3] - B[4][0] + B[4][3];
+        local_ops.subs += 2; local_ops.adds += 1;
+        h[24] = A[0][4] * s; local_ops.muls += 1;
+    }
+    {/////////////////
+        double s = B[0][0] - B[0][3];
+        local_ops.subs += 1;
+        h[25] = -A[0][0] * s; local_ops.muls += 1;
+    }
+
+    {/////////////////////
+        double sA = -A[0][2] + A[0][3] + A[0][4];
+        local_ops.subs += 1; local_ops.adds += 2;
+        h[26] = sA * B[3][3]; local_ops.muls += 1;
+    }
+
+    {////////////////
+        double sA = A[0][2] - A[2][0] + A[2][2];
+        local_ops.subs += 1; local_ops.adds += 1;
+        double sB = B[0][0] - B[0][3] + B[0][4] + B[2][4];
+        local_ops.subs += 1; local_ops.adds += 2;
+        h[27] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////////////
+        double s = -B[2][4] - B[3][0] - B[3][4];
+        local_ops.subs += 2;
+        h[28] = - A[2][3] * s; local_ops.muls += 1;
+    }
+
+    {////////////////////////
+        double s = B[0][0] + B[0][4] + B[2][4];
+        local_ops.adds += 2;
+        h[29] = A[2][0] * s; local_ops.muls += 1;
+    }
+
+    {///////////////
+        double sA = A[2][0] - A[2][2] + A[2][3];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[30] = sA * B[2][4]; local_ops.muls += 1;
+    }
+
+    {///////////////////////
+        double sA = -A[0][3] - A[0][4] - A[2][3];
+        local_ops.subs += 3;
+        double sB = -B[3][3] - B[4][0] + B[4][3] - B[4][4];
+        local_ops.subs += 3; local_ops.adds += 1;
+        h[31] = sA * sB; local_ops.muls += 1;
+    }
+
+    {/////////////////////////
+        double sA = A[1][0] + A[3][0] + A[3][3];
+        local_ops.adds += 2;
+        double sB = B[0][2] - B[3][0] - B[3][1] - B[3][2];
+        local_ops.subs += 2;
+        h[32] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////
+        double s = -B[2][0] - B[2][2];
+        local_ops.subs += 2;
+        h[33] = A[3][2] * s; local_ops.muls += 1;
+    }
+
+    {////////////////
+        double s = -B[0][2] + B[3][0] + B[3][2];
+        local_ops.subs += 1; local_ops.adds += 2;
+        h[34] = A[3][3] * s; local_ops.muls += 1;
+    }
+
+    {//////////////////
+        double s = B[0][2] + B[4][0] + B[4][2];
+        local_ops.adds += 2;
+        h[35] = -A[3][4] * s; local_ops.muls += 1;
+    }
+
+    {/////////////////////
+        double sA = A[1][2] - A[1][4] - A[3][4];
+        local_ops.subs += 2;
+        double sB = B[2][0] + B[2][1] + B[2][2] + B[4][1];
+        local_ops.adds += 3;
+        h[36] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////////
+        double sA = -A[3][0] - A[3][3] + A[3][4];
+        local_ops.subs += 2; local_ops.adds += 1;
+        h[37] = sA * B[0][2]; local_ops.muls += 1;
+    }
+
+    {////////////////////
+        double sA = -A[1][2] - A[2][0] + A[2][2] - A[2][3];
+        local_ops.subs += 3; local_ops.adds += 1;
+        double sB = B[2][4] + B[3][0] + B[3][1] + B[3][4];
+        local_ops.adds += 3;
+        h[38] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////////////
+        double sA = -A[2][0] - A[3][0] - A[3][3] + A[3][4];
+        local_ops.subs += 3; local_ops.adds += 1;
+        double sB = B[0][2] + B[4][0] + B[4][2] + B[4][4];
+        local_ops.adds += 3;
+        h[39] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////
+        double sA = -A[0][2] + A[0][3] + A[0][4] - A[3][3];
+        local_ops.subs += 2; local_ops.adds += 2;
+        double sB = -B[2][0] - B[2][2] + B[2][3] + B[3][3];
+        local_ops.subs += 2; local_ops.adds += 2;
+        h[40] = sA * sB; local_ops.muls += 1;
+    }
+
+    {//////////////////
+        double sA = -A[0][0] + A[3][0] - A[3][4];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = B[0][2] + B[2][0] + B[2][2] - B[2][3] + B[4][0] + B[4][2] - B[4][3];
+        local_ops.adds += 4; local_ops.subs += 2;
+        h[41] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////////////////////
+        double sA = -A[1][0] + A[1][4] - A[2][4];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = -B[0][0] - B[0][1] - B[0][4] + B[3][0] + B[3][1] + B[3][4] - B[4][1];
+        local_ops.subs += 4; local_ops.adds += 3;
+        h[42] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////////
+        double s = B[3][0] + B[3][1];
+        local_ops.adds += 1;
+        h[43] = A[1][3] * s; local_ops.muls += 1;
+    }
+
+    {////////////////////////
+        double sA = A[1][2] + A[2][1] - A[2][2];
+        local_ops.adds += 1; local_ops.subs += 1;
+        double sB = B[1][1] - B[2][0];
+        local_ops.subs += 1;
+        h[44] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////////////
+        double sA = -A[2][2] + A[2][3] - A[3][2];
+        local_ops.subs += 2; local_ops.adds += 1;
+        double sB = B[2][4] + B[3][0] + B[3][2] + B[3][4] + B[4][0] + B[4][2] + B[4][4];
+        local_ops.adds += 6;
+        h[45] = sA * sB; local_ops.muls += 1;
+    }
+
+    {/////////////////////
+        double s = -B[4][0] - B[4][4];
+        local_ops.subs += 2;
+        h[46] = -A[2][4] * s; local_ops.muls += 1;
+    }
+
+    {////////////////////////
+        double sA = A[1][0] - A[1][4] - A[2][0] + A[2][4];
+        local_ops.adds += 2; local_ops.subs += 2;
+        double sB = B[0][0] + B[0][1] + B[0][4] - B[3][0] - B[3][1] - B[3][4];
+        local_ops.adds += 3; local_ops.subs += 3;
+        h[47] = sA * sB; local_ops.muls += 1;
+    }
+
+    {////////////
+        double sA = -A[1][2] + A[2][2];
+        local_ops.subs += 1; local_ops.adds += 1;
+        double sB = B[1][1] + B[2][1] + B[2][4] + B[3][0] + B[3][1] + B[3][4];
+        local_ops.adds += 5;
+        h[48] = sA * sB; local_ops.muls += 1;
+    }
+
+    {/////////////
+        double sA = -A[0][0] - A[0][2] + A[0][3] + A[0][4] - A[1][0] - A[1][2] + A[1][3] + A[1][4];
+        local_ops.subs += 4; local_ops.adds += 4;
+        double sB = -B[0][0] - B[0][1] + B[0][3];
+        local_ops.subs += 2; local_ops.adds += 1;
+        h[49] = sA * sB; local_ops.muls += 1;
+    }
+
+    {///////////
+        double sA = -A[0][3] - A[1][3];
+        local_ops.subs += 2;
+        double sB = B[1][1] - B[2][0] - B[2][1] + B[2][3] - B[3][1] + B[3][3];
+        local_ops.adds += 2; local_ops.subs += 3;
+        h[50] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sB = B[1][0] + B[1][1] - B[4][0];
+        local_ops.adds += 1; local_ops.subs += 1;
+        h[51] = A[1][1] * sB; local_ops.muls += 1;
+        
+    }
+
+    {
+        double sB = B[0][0] + B[1][0] + B[1][2];
+        local_ops.adds += 2;
+        h[52] = A[3][1] * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sB = -B[1][0] + B[1][3] + B[3][0];
+        local_ops.subs += 1; local_ops.adds += 2;
+        h[53] = -A[0][1] * sB; local_ops.muls += 1;
+    }
+
+    {//////////////
+        double sA = A[0][1] + A[0][3] - A[1][1] - A[1][4] - A[2][1] + A[2][2] - A[3][1] + A[3][2] - A[3][3] - A[3][4];
+        local_ops.adds += 3; local_ops.subs += 7;
+        h[54] = sA * B[1][2]; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][3] - A[3][3];
+        local_ops.subs += 1;
+        double sB = -B[1][2] + B[2][0] + B[2][2] - B[2][3] + B[3][2] - B[3][3];
+        local_ops.adds += 3; local_ops.subs += 3;
+        h[55] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][0] - A[0][4] - A[3][0] + A[3][4];
+        local_ops.adds += 2; local_ops.subs += 2;
+        double sB = B[2][0] + B[2][2] - B[2][3] + B[4][0] + B[4][2] - B[4][3];
+        local_ops.adds += 3; local_ops.subs += 2;
+        h[56] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[2][0] - A[3][0];
+        local_ops.subs += 2;
+        double sB = -B[0][2] - B[0][4] - B[1][4] - B[4][0] - B[4][2] - B[4][4];
+        local_ops.subs += 6;
+        h[57] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[0][3] - A[0][4] - A[2][3] - A[2][4];
+        local_ops.subs += 4;
+        double sB = -B[4][0] + B[4][3] - B[4][4];
+        local_ops.subs += 2; local_ops.adds += 1;
+        h[58] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[2][2] + A[2][3] - A[3][2] + A[3][3];
+        local_ops.subs += 2; local_ops.adds += 2;
+        double sB = B[3][0] + B[3][2] + B[3][4] + B[4][0] + B[4][2] + B[4][4];
+        local_ops.adds += 5;
+        h[59] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[1][4] + A[3][4];
+        local_ops.adds += 1;
+        double sB = B[1][2] - B[2][0] - B[2][1] - B[2][2] - B[4][1] - B[4][2];
+        local_ops.subs += 5;
+        h[60] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][3] + A[2][3];
+        local_ops.adds += 1;
+        double sB = B[0][0] - B[0][3] + B[0][4] - B[1][4] - B[3][3] + B[3][4] - B[4][0] + B[4][3] - B[4][4];
+        local_ops.adds += 4; local_ops.subs += 5;
+        h[61] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[1][0] + A[3][0];
+        local_ops.adds += 1;
+        double sB = B[0][1] + B[0][2] + B[1][1] - B[3][0] - B[3][1] - B[3][2];
+        local_ops.adds += 2; local_ops.subs += 3;
+        h[62] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[2][2] - A[3][2];
+        local_ops.subs += 2;
+        double sB = -B[1][2] - B[2][2] - B[2][4] - B[3][0] - B[3][2] - B[3][4];
+        local_ops.subs += 6;
+        h[63] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][0] - A[0][2] - A[0][3] + A[2][0] - A[2][2] - A[2][3];
+        local_ops.adds += 1; local_ops.subs += 4;
+        double sB = B[0][0] - B[0][3] + B[0][4];
+        local_ops.subs += 1; local_ops.adds += 1;
+        h[64] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[0][0] + A[3][0];
+        local_ops.subs += 1; local_ops.adds += 1;
+        double sB = -B[0][2] + B[0][3] + B[1][3] - B[4][0] - B[4][2] + B[4][3];
+        local_ops.adds += 3; local_ops.subs += 3;
+        h[65] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][0] - A[0][1] + A[0][2] - A[0][4] - A[1][1] - A[1][4] - A[2][1] + A[2][2] - A[3][0] + A[3][1];
+        local_ops.adds += 3; local_ops.subs += 7;
+        h[66] = sA * B[1][3]; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[1][4] - A[2][4];
+        local_ops.subs += 1;
+        double sB = B[0][0] + B[0][1] + B[0][4] - B[1][4] - B[3][0] - B[3][1] - B[3][4] + B[4][1] + B[4][4];
+        local_ops.adds += 4; local_ops.subs += 4;
+        h[67] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][0] + A[0][2] - A[0][3] - A[0][4] -A[3][0] -A[3][2] + A[3][3] + A[3][4];
+        local_ops.adds += 4; local_ops.subs += 4;
+        double sB = -B[2][0] - B[2][2] + B[2][3];
+        local_ops.subs += 2; local_ops.adds += 1;
+        h[68] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[0][2] + A[0][3] - A[1][2] + A[1][3];
+        local_ops.subs += 2; local_ops.adds += 2;
+        double sB = -B[1][3] - B[2][0] - B[2][1] + B[2][3] - B[4][1] + B[4][3];
+        local_ops.subs += 3; local_ops.adds += 2;
+        h[69] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[1][2] - A[1][4] + A[3][2] - A[3][4];
+        local_ops.adds += 2; local_ops.subs += 2;
+        double sB = -B[2][0] - B[2][1] - B[2][2];
+        local_ops.subs += 3;
+        h[70] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[2][0] + A[2][2] - A[2][3] + A[2][4] - A[3][0] + A[3][2] - A[3][3] + A[3][4];
+        local_ops.adds += 3; local_ops.subs += 5;
+        double sB = -B[4][0] - B[4][2] - B[4][4];
+        local_ops.subs += 3;
+        h[71] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = -A[1][0] - A[1][3] - A[3][0] - A[3][3];
+        local_ops.subs += 4;
+        double sB = B[3][0] + B[3][1] + B[3][2];
+        local_ops.adds += 2;
+        h[72] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][2] - A[0][3] - A[0][4] + A[1][2] - A[1][3] - A[1][4];
+        local_ops.adds += 4; local_ops.subs += 5;
+        double sB = B[0][0] + B[0][1] - B[0][3] + B[1][3] +B[4][1] - B[4][3];
+        local_ops.adds += 4; local_ops.subs += 2;
+        h[73] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[1][0] - A[1][2] + A[1][3] - A[2][0] + A[2][2] - A[2][3];
+        local_ops.adds += 3; local_ops.subs += 3;
+        double sB = B[3][0] + B[3][1] + B[3][4];
+        local_ops.adds += 2;
+        h[74] = sA * sB; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][1] + A[0][3] - A[1][1] - A[1][4] - A[2][0] + A[2][1] + A[2][3] + A[2][4] - A[3][0] + A[3][1];
+        local_ops.adds += 5; local_ops.subs += 5;
+        h[75] = - sA * B[1][4]; local_ops.muls += 1;
+    }
+
+    {
+        double sA = A[0][2] + A[2][2];
+        local_ops.adds += 1;
+        double sB = -B[0][0] + B[0][3] - B[0][4] + B[1][3] + B[2][3] - B[2][4];
+        local_ops.adds += 3; local_ops.subs += 3;
+        h[76] = sA * sB; local_ops.muls += 1;
+    }
+
+    // --- assemble final 4x5 C from h's ---
+    Matrix C = zeroMatrix(4,5);
+
+    {
+        double v = -h[10] + h[12] + h[14] - h[15] - h[16] + h[53] + h[5] - h[66] - h[7];
+        local_ops.adds += 3; local_ops.subs += 5;
+        C[0][0] = v;
+    }
+
+    {
+        double v = h[10] + h[11] - h[12] + h[13] + h[15] + h[16] - h[17] - h[44] + h[51];
+        local_ops.adds += 5; local_ops.subs += 3;
+        C[1][0] = v;
+    }
+
+    {
+        double v = h[10] - h[12] + h[15] + h[16] - h[1] + h[2] + h[3] - h[4] + h[75];
+        local_ops.adds += 5; local_ops.subs += 4;
+        C[2][0] = v;
+    }
+
+    {
+        double v = -h[10] + h[12] - h[15] - h[16] + h[52] + h[54] - h[6] - h[8] + h[9];
+        local_ops.adds += 3; local_ops.subs += 6;
+        C[3][0] = v;
+    }
+
+    {
+        double v = h[13] + h[15] + h[20] + h[21] - h[22] + h[23] + h[25] - h[43] + h[49] + h[50];
+        local_ops.adds += 6; local_ops.subs += 2;
+        C[0][1] = v;
+    }
+
+    {
+        double v = -h[11] + h[12] - h[13] - h[15] - h[16] + h[17] + h[18] - h[19] - h[21] +h[43] + h[44];
+        local_ops.adds += 4; local_ops.subs += 7;
+        C[1][1] = v;
+    }
+
+    {
+        double v = -h[16] - h[19] - h[21] - h[28] - h[29] - h[38] + h[42] + h[44] - h[47] + h[48];
+        local_ops.adds += 3; local_ops.subs += 7;
+        C[2][1] = v;
+    }
+
+    {
+        double v = h[11] - h[12] - h[18] + h[21] - h[32] + h[33] - h[34] - h[36] + h[62] - h[70];
+        local_ops.adds += 4; local_ops.subs += 6;
+        C[3][1] = v;
+    }
+
+    {
+        double v = h[15] + h[23] + h[24] + h[34] - h[37] + h[40] - h[41] + h[55] - h[56] - h[9];
+        local_ops.adds += 5; local_ops.subs += 5;
+        C[0][2] = v;
+    }
+
+    {
+        double v = -h[10] + h[19] + h[32] + h[35] + h[36] + h[37] - h[43] - h[60] - h[6] - h[72];
+        local_ops.adds += 5; local_ops.subs += 5;
+        C[1][2] = v;
+    }
+
+    {
+        double v = -h[16] - h[28] + h[33] + h[37] - h[39] + h[45] - h[46] + h[63] - h[71] - h[8];
+        local_ops.adds += 4; local_ops.subs += 6;
+        C[2][2] = v;
+    }
+
+    {
+        double v = h[10] + h[15] + h[16] - h[33] + h[34] - h[35] - h[37] - h[54] + h[6] + h[8] - h[9];
+        local_ops.adds += 5; local_ops.subs += 5;
+        C[3][2] = v;
+    }
+
+    {
+        double v = -h[10] + h[12] + h[14] - h[16] + h[23] + h[24] + h[25] + h[26] +h[5] - h[66] - h[7];
+        local_ops.adds += 6; local_ops.subs += 5;
+        C[0][3] = v;
+    }
+
+    {
+        double v = h[10] + h[18] - h[19] + h[20] - h[22] - h[24] - h[26] - h[5] -h[69] + h[73];
+        local_ops.adds += 3; local_ops.subs += 7;
+        C[1][3] = v;
+    }
+
+    {
+        double v = -h[14] + h[16] - h[23] - h[26] + h[27] + h[29] + h[31] + h[46] - h[58] + h[76];
+        local_ops.adds += 6; local_ops.subs += 4;
+        C[2][3] = v;
+    }
+
+    {
+        double v = h[12] + h[25] + h[26] - h[33] - h[35] - h[40] + h[41] + h[65] - h[68] - h[7];
+        local_ops.adds += 5; local_ops.subs += 5;
+        C[3][3] = v;
+    }
+
+    {
+        double v = h[15] + h[24] + h[25] + h[27] - h[28] + h[30] + h[31] - h[4] + h[61] + h[64];
+        local_ops.adds += 7; local_ops.subs += 3;
+        C[0][4] = v;
+    }
+
+    {
+        double v = -h[10] - h[18] - h[2] - h[30] - h[38] + h[42] - h[43] + h[46] + h[67] + h[74];
+        local_ops.adds += 4; local_ops.subs += 6;
+        C[1][4] = v;
+    }
+
+    {
+        double v = -h[10] + h[12] - h[15] + h[28] + h[29] - h[2] - h[30] -h[3] + h[46] + h[4] - h[75];
+        local_ops.adds += 5; local_ops.subs += 7;
+        C[2][4] = v;
+    }
+
+    {
+        double v = -h[12] - h[29] + h[30] - h[34] + h[35] + h[39] + h[3] -h[45] +h[57] + h[59];
+        local_ops.adds += 5; local_ops.subs += 5;
+        C[3][4] = v;
+    }
+
+    // add local operation counts to global counters
+    opCounterAdd(local_ops);
+
+    memCounterExitCall(4,5);
+    return C;
+}
+
+std::unique_ptr<IMnozenie> createAI() {
+    return std::make_unique<AI>();
+}
+
+#include "Binet.h"
+#include "SupportFunctions.h"
+
+#include <algorithm>
+#include <stdexcept>
+#include <memory>
+#include <vector>
+
+namespace {
+
+using Matrix = ::Matrix;
+
+Matrix multiplyRec(const Matrix &A, const Matrix &B) {
+    int Arows = static_cast<int>(A.size());
+    int Acols = Arows ? static_cast<int>(A[0].size()) : 0;
+    int Brows = static_cast<int>(B.size());
+    int Bcols = Brows ? static_cast<int>(B[0].size()) : 0;
+    if (Acols != Brows) {
+        throw std::runtime_error("Incompatible dimensions for multiplication");
+    }
+
+
+    memCounterEnterCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+
+    if (Arows == 1 || Acols == 1 || Bcols == 1) {
+        Matrix M = A * B;
+        memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+        return M;
+    }
+
+    int A11width = Acols / 2;
+    int A12width = Acols - A11width;
+    int A11height = Arows / 2;
+    int A21height = Arows - A11height;
+
+    int B11width = Bcols / 2;
+    int B12width = Bcols - B11width;
+    
+    Matrix A11 = subMatrix(A, 0, 0, A11height, A11width);
+    Matrix A12 = subMatrix(A, 0, A11width, A11height, A12width);
+    Matrix A21 = subMatrix(A, A11height, 0, A21height, A11width);
+    Matrix A22 = subMatrix(A, A11height, A11width, A21height, A12width);
+
+    Matrix B11 = subMatrix(B, 0, 0, A11width, B11width);
+    Matrix B12 = subMatrix(B, 0, B11width, A11width, B12width);
+    Matrix B21 = subMatrix(B, A11width, 0, A12width, B11width);
+    Matrix B22 = subMatrix(B, A11width, B11width, A12width, B12width);
+
+    Matrix C11 = multiplyRec(A11, B11) + multiplyRec(A12, B21);
+    Matrix C12 = multiplyRec(A11, B12) + multiplyRec(A12, B22);
+    Matrix C21 = multiplyRec(A21, B11) + multiplyRec(A22, B21);
+    Matrix C22 = multiplyRec(A21, B12) + multiplyRec(A22, B22);
+
+    Matrix M = combine(C11, C12, C21, C22);
+
+    memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+    return M;
+}
+
+} // namespace (internal)
+
+
+class BinetImpl : public IMnozenie {
+public:
+    Matrix multiply(const Matrix &A, const Matrix &B) override {
+        return multiplyRec(A, B);
+    }
+};
+
+std::unique_ptr<IMnozenie> createBinet() {
+    return std::make_unique<BinetImpl>();
+}
+
+#include <iostream>
+#include <chrono>
+#include <iomanip>
+#include <vector>
+#include <memory>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <cmath>
+
+#include "SupportFunctions.h"
+#include "Mnozenie.h"
+#include "Binet.h"
+#include "Strassen.h"
+#include "AI.h"
+
+int main(int argc, char** argv) {
+    if (argc >= 2) { //batch mode
+        std::vector<int> sizes;
+        std::string path = argv[1];
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            std::cerr << "Nie mozna otworzyc pliku: " << path << "\n";
+            return 1;
+        }
+        std::string line;
+        while (std::getline(in, line)) {
+            std::istringstream iss(line);
+            std::string token;
+            if (!(iss >> token)) continue;
+            if (token.size() > 0 && token[0] == '#') continue;
+            try {
+                int n = std::stoi(token);
+                if (n > 0) sizes.push_back(n);
+            } catch (...) {}
+        }
+        if (sizes.empty()) {
+            std::cerr << "Brak poprawnych rozmiarow w pliku: " << path << "\n";
+            return 1;
+        }
+
+        // Create both implementations
+        auto binetImpl = createBinet();
+        auto strassenImpl = createStrassen();
+
+        // Open output files
+        std::ofstream outBinet("wynikBinet.txt");
+        std::ofstream outStrassen("wynikStrassen.txt");
+        if (!outBinet.is_open() || !outStrassen.is_open()) {
+            std::cerr << "Nie mozna utworzyc plikow wynikowych\n";
+            return 1;
+        }
+
+        outBinet << "# N czas_s adds subs muls divs peak_bytes peak_calls\n";
+        outStrassen << "# N czas_s adds subs muls divs peak_bytes peak_calls\n";
+
+        std::cout << "\n========================================\n";
+        std::cout << "Rozpoczynam obliczenia dla " << sizes.size() << " rozmiarow macierzy\n";
+        std::cout << "========================================\n\n";
+
+        // Process each size alternating between Binet and Strassen
+        for (size_t i = 0; i < sizes.size(); ++i) {
+            int N = sizes[i];
+            
+            std::cout << "[" << (i+1) << "/" << sizes.size() << "] ";
+            std::cout << "N=" << std::setw(4) << N << " ... ";
+            std::cout.flush();
+
+            auto A = createRandomMatrix(N);
+            auto B = createRandomMatrix(N);
+            if ((int)A.size() != N || (int)B.size() != N) {
+                outBinet << N << " " << -1 << " 0 0 0 0 0 0\n";
+                outStrassen << N << " " << -1 << " 0 0 0 0 0 0\n";
+                std::cout << "BLAD (tworzenie macierzy)\n";
+                continue;
+            }
+
+            // Alternate: even indices -> Binet first, odd indices -> Strassen first
+            bool binetFirst = (i % 2 == 0);
+
+            if (binetFirst) {
+                // Run Binet
+                std::cout << "Binet... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                Matrix C = binetImpl->multiply(A, B);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                outBinet << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outBinet.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s | ";
+                std::cout.flush();
+
+                // Run Strassen
+                std::cout << "Strassen... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                t0 = std::chrono::high_resolution_clock::now();
+                C = strassenImpl->multiply(A, B);
+                t1 = std::chrono::high_resolution_clock::now();
+                ops = opCounterGet();
+                ms = memCounterGet();
+                elapsed = t1 - t0;
+
+                outStrassen << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outStrassen.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s";
+                
+            } else {
+                // Run Strassen first
+                std::cout << "Strassen... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                Matrix C = strassenImpl->multiply(A, B);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                outStrassen << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outStrassen.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s | ";
+                std::cout.flush();
+
+                // Run Binet
+                std::cout << "Binet... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                t0 = std::chrono::high_resolution_clock::now();
+                C = binetImpl->multiply(A, B);
+                t1 = std::chrono::high_resolution_clock::now();
+                ops = opCounterGet();
+                ms = memCounterGet();
+                elapsed = t1 - t0;
+
+                outBinet << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outBinet.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s";
+            }
+            
+            std::cout << " OK\n";
+            std::cout.flush();
+        }
+
+        outBinet.close();
+        outStrassen.close();
+        
+        std::cout << "\n========================================\n";
+        std::cout << "Zakonczono! Wyniki zapisane do:\n";
+        std::cout << "  - wynikBinet.txt\n";
+        std::cout << "  - wynikStrassen.txt\n";
+        std::cout << "========================================\n";
+
+    } else {
+        std::cout << "Podaj rozmiar macierzy N (NxN): ";
+        int N;
+        if (!(std::cin >> N) || N <= 0) {
+            std::cerr << "Niepoprawny rozmiar.\n";
+            return 1;
+        }
+
+        int choice;
+        std::cout << "Wybierz metode:\n";
+        std::cout << "1) Binet (rekurencyjnie bez padowania)\n";
+        std::cout << "2) Strassen\n";
+        std::cout << "3) AI\n";
+        std::cout << "Wybor (domyslnie 1): ";
+        if (!(std::cin >> choice)) choice = 1;
+
+        std::unique_ptr<IMnozenie> impl;
+        switch (choice) {
+            case 1:
+                impl = createBinet();
+                break;
+            case 2:
+                impl = createStrassen();
+                break;
+            case 3:
+                impl = createAI();
+                break;
+            default:
+                std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
+                impl = createBinet();
+        }
+    
+        auto A = createRandomMatrix(N);
+        auto B = createRandomMatrix(N);
+
+        if (choice == 3) {
+            A = createRandomMatrix(4, 5);
+            B = createRandomMatrix(5, 5);        
+        }
+
+        opCounterReset();
+        memCounterReset();
+        auto t0 = std::chrono::high_resolution_clock::now();
+        Matrix C = impl->multiply(A, B);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        OpCounts ops = opCounterGet();
+        MemStats ms = memCounterGet();
+        std::chrono::duration<double> elapsed = t1 - t0;
+
+        std::cout << "Czas (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
+        std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
+                    << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
+        std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
+
+        Matrix C_ref = A * B;
+        auto [ok, maxdiff] = compareMatrices(C, C_ref, 1e-9);
+        if (ok) {
+            std::cout << "Macierze zgodne (roznica max " << std::setprecision(12) << maxdiff << ")\n";
+        } else {
+            std::cout << "Macierze NIEZGODNE! (roznica max " << std::setprecision(12) << maxdiff << ")\n";
+        }
+        
+        if (N <= 12) {
+            std::cout << "A:\n"; printSmall(A);
+            std::cout << "B:\n"; printSmall(B);
+            std::cout << "C = A * B:\n"; printSmall(C);
+            std::cout << "C - C_ref:\n"; printSmall(C - C_ref);
+        } else {
+            std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
+            std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
+        }
+    }
+
+    return 0;
+}
+
+#include "Strassen.h"
+#include "SupportFunctions.h"
+
+#include <algorithm>
+#include <stdexcept>
+#include <memory>
+#include <vector>
+
+namespace {
+
+using Matrix = ::Matrix;
+
+Matrix trim(const Matrix &A, int newRows, int newCols) {
+    int Arows = static_cast<int>(A.size());
+    int Acols = Arows ? static_cast<int>(A[0].size()) : 0;
+    if (newRows > Arows || newCols > Acols) {
+        throw std::runtime_error("New size must be smaller than original");
+    }
+    Matrix B = zeroMatrix(newRows, newCols);
+    for (int i = 0; i < newRows; i++)
+        for (int j = 0; j < newCols; j++)
+            B[i][j] = A[i][j];
+    return B;
+}
+
+Matrix subMatrixPadded(const Matrix &A, int row, int col, int rows, int cols, int paddedRows, int paddedCols) {
+    Matrix R = zeroMatrix(paddedRows, paddedCols);
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j)
+            R[i][j] = A[row + i][col + j];
+    return R;
+}
+
+Matrix multiplyRec(const Matrix &A, const Matrix &B) {
+    int Arows = static_cast<int>(A.size());
+    int Acols = Arows ? static_cast<int>(A[0].size()) : 0;
+    int Brows = static_cast<int>(B.size());
+    int Bcols = Brows ? static_cast<int>(B[0].size()) : 0;
+    if (Arows != Acols || Acols != Brows || Brows != Bcols) {
+        throw std::runtime_error("Implemented only for square matrices");
+    }
+
+    memCounterEnterCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+
+    if (Arows == 1) {
+        Matrix M = A * B;
+        memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+        return M;
+    }
+
+    int A11width = (Acols + 1) / 2;
+    int A12width = Acols - A11width;
+    int A11height = (Arows + 1) / 2;
+    int A21height = Arows - A11height;
+
+    Matrix A11 = subMatrix(A, 0, 0, A11height, A11width);
+    Matrix A12 = subMatrixPadded(A, 0, A11width, A11height, A12width, A11height, A11width);
+    Matrix A21 = subMatrixPadded(A, A11height, 0, A21height, A11width, A11height, A11width);
+    Matrix A22 = subMatrixPadded(A, A11height, A11width, A21height, A12width, A11height, A11width);
+    
+    Matrix B11 = subMatrix(B, 0, 0, A11height, A11width);
+    Matrix B12 = subMatrixPadded(B, 0, A11width, A11height, A12width, A11height, A11width);
+    Matrix B21 = subMatrixPadded(B, A11height, 0, A21height, A11width, A11height, A11width);
+    Matrix B22 = subMatrixPadded(B, A11height, A11width, A21height, A12width, A11height, A11width);
+
+    Matrix P1 = multiplyRec(A11 + A22, B11 + B22);
+    Matrix P2 = multiplyRec(A21 + A22, B11);
+    Matrix P3 = multiplyRec(A11, B12 - B22);
+    Matrix P4 = multiplyRec(A22, B21 - B11);
+    Matrix P5 = multiplyRec(A11 + A12, B22);
+    Matrix P6 = multiplyRec(A21 - A11, B11 + B12);
+    Matrix P7 = multiplyRec(A12 - A22, B21 + B22);
+
+    Matrix C11 = P1 + P4 - P5 + P7;
+    Matrix C12 = trim(P3 + P5, A11height, A12width);
+    Matrix C21 = trim(P2 + P4, A21height, A11width);
+    Matrix C22 = trim(P1 + P3 - P2 + P6, A21height, A12width);
+
+    Matrix M = combine(C11, C12, C21, C22);
+
+    memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+    return M;
+}
+
+}
+
+class StrassenImpl : public IMnozenie {
+public:
+    Matrix multiply(const Matrix &A, const Matrix &B) override {
+        return multiplyRec(A, B);
+    }
+};
+
+std::unique_ptr<IMnozenie> createStrassen() {
+    return std::make_unique<StrassenImpl>();
+}
+
+#include "SupportFunctions.h"
+#include <random>
+#include <iomanip>
+#include <vector>
+#include <atomic>
+
+// we use plain uint64_t (single-threaded). If multithreaded, change to atomic.
+static std::uint64_t g_adds = 0;
+static std::uint64_t g_subs = 0;
+static std::uint64_t g_muls = 0;
+static std::uint64_t g_divs = 0;
+
+void opCounterReset() {
+    g_adds = g_subs = g_muls = g_divs = 0;
+}
+
+OpCounts opCounterGet() {
+    return OpCounts{g_adds, g_subs, g_muls, g_divs};
+}
+
+void opCounterAdd(const OpCounts &c) {
+    g_adds += c.adds;
+    g_subs += c.subs;
+    g_muls += c.muls;
+    g_divs += c.divs;
+}
+
+static std::uint64_t g_mem_current = 0;
+static std::uint64_t g_mem_peak = 0;
+static std::uint64_t g_active_calls = 0;
+static std::uint64_t g_peak_calls = 0;
+
+void memCounterReset() {
+    g_mem_current = 0;
+    g_mem_peak = 0;
+    g_active_calls = 0;
+    g_peak_calls = 0;
+}
+
+void memCounterEnterCall(std::size_t p, std::size_t r) {
+    std::uint64_t bytes = static_cast<std::uint64_t>(p) * static_cast<std::uint64_t>(r) * sizeof(double);
+    g_mem_current += bytes;
+    if (g_mem_current > g_mem_peak) g_mem_peak = g_mem_current;
+    ++g_active_calls;
+    if (g_active_calls > g_peak_calls) g_peak_calls = g_active_calls;
+}
+
+void memCounterExitCall(std::size_t p, std::size_t r) {
+    std::uint64_t bytes = static_cast<std::uint64_t>(p) * static_cast<std::uint64_t>(r) * sizeof(double);
+    // avoid underflow
+    if (g_mem_current >= bytes) g_mem_current -= bytes;
+    else g_mem_current = 0;
+    if (g_active_calls > 0) --g_active_calls;
+}
+
+MemStats memCounterGet() {
+    return MemStats{g_mem_current, g_mem_peak, g_active_calls, g_peak_calls};
+}
+
+Matrix createRandomMatrix(int m, int n) {
+    Matrix M(m, std::vector<double>(n));
+    std::mt19937_64 rng(std::random_device{}());
+    // open interval (1e-8, 1.0) approximated by avoiding exact endpoints
+    std::uniform_real_distribution<double> dist(1e-8 + 1e-16, 1.0 - 1e-16);
+
+    for (int i = 0; i < m; ++i)
+        for (int j = 0; j < n; ++j)
+            M[i][j] = dist(rng);
+    return M;
+}
+
+Matrix createRandomMatrix(int n) {
+    return createRandomMatrix(n, n);
+}
+
+
+void printSmall(const Matrix& M) {
+    for (size_t i = 0; i < M.size(); ++i) {
+        for (size_t j = 0; j < M[i].size(); ++j)
+            std::cout << std::setprecision(6) << std::setw(12) << M[i][j];
+        std::cout << '\n';
+    }
+}
+
+Matrix zeroMatrix(int rows, int cols) {
+    return Matrix(rows, std::vector<double>(cols, 0.0));
+}
+
+Matrix zeroMatrix(int n) {
+    return zeroMatrix(n, n);
+}
+
+// A[row:row+rows-1][col:col+cols-1]
+Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols) {
+    Matrix R = zeroMatrix(rows, cols);
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j)
+            R[i][j] = A[row + i][col + j];
+    return R;
+}
+
+Matrix combine(const Matrix &A11, const Matrix &A12,
+               const Matrix &A21, const Matrix &A22) {
+    int A11rows = static_cast<int>(A11.size());
+    int A12rows = static_cast<int>(A12.size());
+    int A11cols = A11rows ? static_cast<int>(A11[0].size()) : 0;
+    int A12cols = A12.size() ? static_cast<int>(A12[0].size()) : 0;
+    int A21rows = A21.size();
+    int A22rows = A22.size();
+    Matrix A = zeroMatrix(A11rows + A21rows, A11cols + A12cols);
+    for (int i = 0; i < A11rows; i++)
+        for (int j = 0; j < A11cols; j++)
+            A[i][j] = A11[i][j];
+
+    for (int i = 0; i < A12rows; i++)
+        for (int j = 0; j < A12cols; j++)
+            A[i][j + A11cols] = A12[i][j];
+
+    for (int i = 0; i < A21rows; i++)
+        for (int j = 0; j < A11cols; j++)
+            A[i + A11rows][j] = A21[i][j];
+
+    for (int i = 0; i < A22rows; i++)
+        for (int j = 0; j < A12cols; j++)
+            A[i + A11rows][j + A11cols] = A22[i][j];
+
+    return A;
+}
+
+Matrix operator+(const Matrix &A, const Matrix &B) {
+    int rows = static_cast<int>(A.size());
+    int cols = rows ? static_cast<int>(A[0].size()) : 0;
+    Matrix R = zeroMatrix(rows, cols);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            R[i][j] = A[i][j] + B[i][j];
+            ++g_adds;
+        }
+    }
+    return R;
+}
+
+Matrix operator-(const Matrix &A, const Matrix &B) {
+    int rows = static_cast<int>(A.size());
+    int cols = rows ? static_cast<int>(A[0].size()) : 0;
+    Matrix R = zeroMatrix(rows, cols);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            R[i][j] = A[i][j] - B[i][j];
+            ++g_subs;
+        }
+    }
+    return R;
+}
+
+Matrix operator*(const Matrix &A, const Matrix &B) {
+    int p = static_cast<int>(A.size());
+    int q = p ? static_cast<int>(A[0].size()) : 0;
+    int r = B.size() ? static_cast<int>(B[0].size()) : 0;
+
+    // account for this call's result allocation
+    memCounterEnterCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
+
+    Matrix C = zeroMatrix(p, r);
+    for (int i = 0; i < p; ++i) {
+        for (int k = 0; k < q; ++k) {
+            double aik = A[i][k];
+            for (int j = 0; j < r; ++j) {
+                double prod = aik * B[k][j];
+                ++g_muls;
+                C[i][j] += prod;
+                ++g_adds;
+            }
+        }
+    }
+
+    memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
+    return C;
+}
+
+std::pair<bool,double> compareMatrices(const Matrix& X, const Matrix& Y, double tol) {
+    if (X.size() != Y.size()) return {false, std::numeric_limits<double>::infinity()};
+    int m = static_cast<int>(X.size());
+    if (m == 0) return {true, 0.0};
+    if (X[0].size() != Y[0].size()) return {false, std::numeric_limits<double>::infinity()};
+    int n = static_cast<int>(X[0].size());
+    double maxDiff = 0.0;
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            double d = std::abs(X[i][j] - Y[i][j]);
+            if (d > maxDiff) maxDiff = d;
+            if (maxDiff > tol) return {false, maxDiff};
+        }
+    }
+    return {true, maxDiff};
+}

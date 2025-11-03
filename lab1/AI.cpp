@@ -373,38 +373,37 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
         local_ops.subs += 2; local_ops.adds += 1;
         h[49] = sA * sB; local_ops.muls += 1;
     }
-    
-    
+
     {///////////
         double sA = -A[0][3] - A[1][3];
         local_ops.subs += 2;
         double sB = B[1][1] - B[2][0] - B[2][1] + B[2][3] - B[3][1] + B[3][3];
-        local_ops.adds += 5; 
+        local_ops.adds += 2; local_ops.subs += 3;
         h[50] = sA * sB; local_ops.muls += 1;
     }
 
     {
         double sB = B[1][0] + B[1][1] - B[4][0];
-        local_ops.adds += 2; 
+        local_ops.adds += 1; local_ops.subs += 1;
         h[51] = A[1][1] * sB; local_ops.muls += 1;
         
     }
 
     {
-        local_ops.subs += 1;
         double sB = B[0][0] + B[1][0] + B[1][2];
+        local_ops.adds += 2;
         h[52] = A[3][1] * sB; local_ops.muls += 1;
     }
 
     {
-        double sA = -A[0][1];
         double sB = -B[1][0] + B[1][3] + B[3][0];
-        h[53] = sA * sB; local_ops.muls += 1;
+        local_ops.subs += 1; local_ops.adds += 2;
+        h[53] = -A[0][1] * sB; local_ops.muls += 1;
     }
 
     {//////////////
         double sA = A[0][1] + A[0][3] - A[1][1] - A[1][4] - A[2][1] + A[2][2] - A[3][1] + A[3][2] - A[3][3] - A[3][4];
-        local_ops.adds += 2; local_ops.subs += 8;
+        local_ops.adds += 3; local_ops.subs += 7;
         h[54] = sA * B[1][2]; local_ops.muls += 1;
     }
 
@@ -452,7 +451,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
         double sA = A[1][4] + A[3][4];
         local_ops.adds += 1;
         double sB = B[1][2] - B[2][0] - B[2][1] - B[2][2] - B[4][1] - B[4][2];
-        local_ops.subs += 4;
+        local_ops.subs += 5;
         h[60] = sA * sB; local_ops.muls += 1;
     }
 
@@ -460,7 +459,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
         double sA = A[0][3] + A[2][3];
         local_ops.adds += 1;
         double sB = B[0][0] - B[0][3] + B[0][4] - B[1][4] - B[3][3] + B[3][4] - B[4][0] + B[4][3] - B[4][4];
-        local_ops.adds += 3; local_ops.subs += 4;
+        local_ops.adds += 4; local_ops.subs += 5;
         h[61] = sA * sB; local_ops.muls += 1;
     }
 
@@ -482,7 +481,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double sA = A[0][0] - A[0][2] - A[0][3] + A[2][0] - A[2][2] - A[2][3];
-        local_ops.adds += 2; local_ops.subs += 3;
+        local_ops.adds += 1; local_ops.subs += 4;
         double sB = B[0][0] - B[0][3] + B[0][4];
         local_ops.subs += 1; local_ops.adds += 1;
         h[64] = sA * sB; local_ops.muls += 1;
@@ -498,7 +497,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double sA = A[0][0] - A[0][1] + A[0][2] - A[0][4] - A[1][1] - A[1][4] - A[2][1] + A[2][2] - A[3][0] + A[3][1];
-        local_ops.adds += 2; local_ops.subs += 8;
+        local_ops.adds += 3; local_ops.subs += 7;
         h[66] = sA * B[1][3]; local_ops.muls += 1;
     }
 
@@ -512,7 +511,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double sA = A[0][0] + A[0][2] - A[0][3] - A[0][4] -A[3][0] -A[3][2] + A[3][3] + A[3][4];
-        local_ops.adds += 3; local_ops.subs += 5;
+        local_ops.adds += 4; local_ops.subs += 4;
         double sB = -B[2][0] - B[2][2] + B[2][3];
         local_ops.subs += 2; local_ops.adds += 1;
         h[68] = sA * sB; local_ops.muls += 1;
@@ -522,7 +521,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
         double sA = -A[0][2] + A[0][3] - A[1][2] + A[1][3];
         local_ops.subs += 2; local_ops.adds += 2;
         double sB = -B[1][3] - B[2][0] - B[2][1] + B[2][3] - B[4][1] + B[4][3];
-        local_ops.subs += 3; local_ops.adds += 1;
+        local_ops.subs += 3; local_ops.adds += 2;
         h[69] = sA * sB; local_ops.muls += 1;
     }
 
@@ -554,7 +553,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
         double sA = A[0][2] - A[0][3] - A[0][4] + A[1][2] - A[1][3] - A[1][4];
         local_ops.adds += 4; local_ops.subs += 5;
         double sB = B[0][0] + B[0][1] - B[0][3] + B[1][3] +B[4][1] - B[4][3];
-        local_ops.adds += 3; local_ops.subs += 1;
+        local_ops.adds += 4; local_ops.subs += 2;
         h[73] = sA * sB; local_ops.muls += 1;
     }
 
@@ -568,7 +567,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double sA = A[0][1] + A[0][3] - A[1][1] - A[1][4] - A[2][0] + A[2][1] + A[2][3] + A[2][4] - A[3][0] + A[3][1];
-        local_ops.adds += 3; local_ops.subs += 6;
+        local_ops.adds += 5; local_ops.subs += 5;
         h[75] = - sA * B[1][4]; local_ops.muls += 1;
     }
 
@@ -597,7 +596,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double v = h[10] - h[12] + h[15] + h[16] - h[1] + h[2] + h[3] - h[4] + h[75];
-        local_ops.adds += 4; local_ops.subs += 4;
+        local_ops.adds += 5; local_ops.subs += 4;
         C[2][0] = v;
     }
 
@@ -615,13 +614,13 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double v = -h[11] + h[12] - h[13] - h[15] - h[16] + h[17] + h[18] - h[19] - h[21] +h[43] + h[44];
-        local_ops.adds += 3; local_ops.subs += 7;
+        local_ops.adds += 4; local_ops.subs += 7;
         C[1][1] = v;
     }
 
     {
         double v = -h[16] - h[19] - h[21] - h[28] - h[29] - h[38] + h[42] + h[44] - h[47] + h[48];
-        local_ops.adds += 4; local_ops.subs += 6;
+        local_ops.adds += 3; local_ops.subs += 7;
         C[2][1] = v;
     }
 
@@ -651,25 +650,25 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double v = h[10] + h[15] + h[16] - h[33] + h[34] - h[35] - h[37] - h[54] + h[6] + h[8] - h[9];
-        local_ops.adds += 6; local_ops.subs += 4;
+        local_ops.adds += 5; local_ops.subs += 5;
         C[3][2] = v;
     }
 
     {
         double v = -h[10] + h[12] + h[14] - h[16] + h[23] + h[24] + h[25] + h[26] +h[5] - h[66] - h[7];
-        local_ops.adds += 5; local_ops.subs += 5;
+        local_ops.adds += 6; local_ops.subs += 5;
         C[0][3] = v;
     }
 
     {
         double v = h[10] + h[18] - h[19] + h[20] - h[22] - h[24] - h[26] - h[5] -h[69] + h[73];
-        local_ops.adds += 6; local_ops.subs += 4;
+        local_ops.adds += 3; local_ops.subs += 7;
         C[1][3] = v;
     }
 
     {
         double v = -h[14] + h[16] - h[23] - h[26] + h[27] + h[29] + h[31] + h[46] - h[58] + h[76];
-        local_ops.adds += 5; local_ops.subs += 4;
+        local_ops.adds += 6; local_ops.subs += 4;
         C[2][3] = v;
     }
 
@@ -687,19 +686,19 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
 
     {
         double v = -h[10] - h[18] - h[2] - h[30] - h[38] + h[42] - h[43] + h[46] + h[67] + h[74];
-        local_ops.adds += 5; local_ops.subs += 5;
+        local_ops.adds += 4; local_ops.subs += 6;
         C[1][4] = v;
     }
 
     {
         double v = -h[10] + h[12] - h[15] + h[28] + h[29] - h[2] - h[30] -h[3] + h[46] + h[4] - h[75];
-        local_ops.adds += 5; local_ops.subs += 5;
+        local_ops.adds += 5; local_ops.subs += 7;
         C[2][4] = v;
     }
 
     {
         double v = -h[12] - h[29] + h[30] - h[34] + h[35] + h[39] + h[3] -h[45] +h[57] + h[59];
-        local_ops.adds += 6; local_ops.subs += 4;
+        local_ops.adds += 5; local_ops.subs += 5;
         C[3][4] = v;
     }
 

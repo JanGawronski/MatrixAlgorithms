@@ -17,7 +17,6 @@
 int main(int argc, char** argv) {
     if (argc >= 2) { //batch mode
         std::vector<int> sizes;
-        int choice = 1; // default choice
         std::string path = argv[1];
         std::ifstream in(path);
         if (!in.is_open()) {
@@ -39,57 +38,144 @@ int main(int argc, char** argv) {
             std::cerr << "Brak poprawnych rozmiarow w pliku: " << path << "\n";
             return 1;
         }
-        if (argc >= 3) {
-            try {
-                int m = std::stoi(argv[2]);
-                if (m > 0) choice = m;
-                else { choice = 1; }
-            } catch (...) { choice = 1; }
-        } else {
-            choice = 1;
-        }
 
-        std::unique_ptr<IMnozenie> impl;
-        switch (choice) {
-            case 1:
-                impl = createBinet();
-                break;
-            case 2:
-                impl = createStrassen();
-                break;
-            default:
-                std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
-                impl = createBinet();
-        }
+        // Create both implementations
+        auto binetImpl = createBinet();
+        auto strassenImpl = createStrassen();
 
-        std::ofstream out("wynik.txt");
-        if (!out.is_open()) {
-            std::cerr << "Nie mozna utworzyc pliku wynik.txt\n";
+        // Open output files
+        std::ofstream outBinet("wynikBinet.txt");
+        std::ofstream outStrassen("wynikStrassen.txt");
+        if (!outBinet.is_open() || !outStrassen.is_open()) {
+            std::cerr << "Nie mozna utworzyc plikow wynikowych\n";
             return 1;
         }
-        out << "# N czas_s adds subs muls divs peak_bytes peak_calls\n";
-        for (int N : sizes) {
+
+        outBinet << "# N czas_s adds subs muls divs peak_bytes peak_calls\n";
+        outStrassen << "# N czas_s adds subs muls divs peak_bytes peak_calls\n";
+
+        std::cout << "\n========================================\n";
+        std::cout << "Rozpoczynam obliczenia dla " << sizes.size() << " rozmiarow macierzy\n";
+        std::cout << "========================================\n\n";
+
+        // Process each size alternating between Binet and Strassen
+        for (size_t i = 0; i < sizes.size(); ++i) {
+            int N = sizes[i];
+            
+            std::cout << "[" << (i+1) << "/" << sizes.size() << "] ";
+            std::cout << "N=" << std::setw(4) << N << " ... ";
+            std::cout.flush();
+
             auto A = createRandomMatrix(N);
             auto B = createRandomMatrix(N);
             if ((int)A.size() != N || (int)B.size() != N) {
-                out << N << " " << -1 << " 0 0 0 0 0 0\n";
+                outBinet << N << " " << -1 << " 0 0 0 0 0 0\n";
+                outStrassen << N << " " << -1 << " 0 0 0 0 0 0\n";
+                std::cout << "BLAD (tworzenie macierzy)\n";
                 continue;
             }
 
-            opCounterReset();
-            memCounterReset();
-            auto t0 = std::chrono::high_resolution_clock::now();
-            Matrix C = impl->multiply(A, B);
-            auto t1 = std::chrono::high_resolution_clock::now();
-            OpCounts ops = opCounterGet();
-            MemStats ms = memCounterGet();
-            std::chrono::duration<double> elapsed = t1 - t0;
+            // Alternate: even indices -> Binet first, odd indices -> Strassen first
+            bool binetFirst = (i % 2 == 0);
 
-            out << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
-                << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
-                << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+            if (binetFirst) {
+                // Run Binet
+                std::cout << "Binet... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                Matrix C = binetImpl->multiply(A, B);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                outBinet << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outBinet.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s | ";
+                std::cout.flush();
+
+                // Run Strassen
+                std::cout << "Strassen... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                t0 = std::chrono::high_resolution_clock::now();
+                C = strassenImpl->multiply(A, B);
+                t1 = std::chrono::high_resolution_clock::now();
+                ops = opCounterGet();
+                ms = memCounterGet();
+                elapsed = t1 - t0;
+
+                outStrassen << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outStrassen.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s";
+                
+            } else {
+                // Run Strassen first
+                std::cout << "Strassen... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                Matrix C = strassenImpl->multiply(A, B);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                outStrassen << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outStrassen.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s | ";
+                std::cout.flush();
+
+                // Run Binet
+                std::cout << "Binet... ";
+                std::cout.flush();
+                
+                opCounterReset();
+                memCounterReset();
+                t0 = std::chrono::high_resolution_clock::now();
+                C = binetImpl->multiply(A, B);
+                t1 = std::chrono::high_resolution_clock::now();
+                ops = opCounterGet();
+                ms = memCounterGet();
+                elapsed = t1 - t0;
+
+                outBinet << N << " " << std::fixed << std::setprecision(6) << elapsed.count()
+                    << " " << ops.adds << " " << ops.subs << " " << ops.muls << " " << ops.divs
+                    << " " << ms.peak_bytes << " " << ms.peak_calls << "\n";
+                outBinet.flush();
+
+                std::cout << std::fixed << std::setprecision(3) << elapsed.count() << "s";
+            }
+            
+            std::cout << " OK\n";
+            std::cout.flush();
         }
-        out.close();
+
+        outBinet.close();
+        outStrassen.close();
+        
+        std::cout << "\n========================================\n";
+        std::cout << "Zakonczono! Wyniki zapisane do:\n";
+        std::cout << "  - wynikBinet.txt\n";
+        std::cout << "  - wynikStrassen.txt\n";
+        std::cout << "========================================\n";
+
     } else {
         std::cout << "Podaj rozmiar macierzy N (NxN): ";
         int N;
@@ -161,7 +247,6 @@ int main(int argc, char** argv) {
             std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
             std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
         }
-
     }
 
     return 0;
