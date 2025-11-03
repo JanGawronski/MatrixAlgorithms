@@ -18,7 +18,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
     }
 
     // account memory for this 4x5 result
-    memCounterEnterCall(4,5);
+    memCounterEnterCall(4,5,1);
 
     // prepare h[1..76] (1-based indexing)
     std::array<double, 77> h{};
@@ -705,7 +705,7 @@ Matrix AI::multiply(const Matrix& A, const Matrix& B) {
     // add local operation counts to global counters
     opCounterAdd(local_ops);
 
-    memCounterExitCall(4,5);
+    memCounterExitCall(4,5,1);
     return C;
 }
 

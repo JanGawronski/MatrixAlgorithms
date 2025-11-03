@@ -43,6 +43,6 @@ struct MemStats {
 };
 
 void memCounterReset();
-void memCounterEnterCall(std::size_t p, std::size_t r); // account for p*r*sizeof(double)
-void memCounterExitCall(std::size_t p, std::size_t r);
+void memCounterEnterCall(std::size_t p, std::size_t r, int n); // account for p*r*sizeof(double)
+void memCounterExitCall(std::size_t p, std::size_t r, int n);
 MemStats memCounterGet();

@@ -37,16 +37,16 @@ void memCounterReset() {
     g_peak_calls = 0;
 }
 
-void memCounterEnterCall(std::size_t p, std::size_t r) {
-    std::uint64_t bytes = static_cast<std::uint64_t>(p) * static_cast<std::uint64_t>(r) * sizeof(double);
+void memCounterEnterCall(std::size_t p, std::size_t r, int n) {
+    std::uint64_t bytes = static_cast<std::uint64_t>(p) * static_cast<std::uint64_t>(r) * sizeof(double) * n;
     g_mem_current += bytes;
     if (g_mem_current > g_mem_peak) g_mem_peak = g_mem_current;
     ++g_active_calls;
     if (g_active_calls > g_peak_calls) g_peak_calls = g_active_calls;
 }
 
-void memCounterExitCall(std::size_t p, std::size_t r) {
-    std::uint64_t bytes = static_cast<std::uint64_t>(p) * static_cast<std::uint64_t>(r) * sizeof(double);
+void memCounterExitCall(std::size_t p, std::size_t r, int n) {
+    std::uint64_t bytes = static_cast<std::uint64_t>(p) * static_cast<std::uint64_t>(r) * sizeof(double) * n;
     // avoid underflow
     if (g_mem_current >= bytes) g_mem_current -= bytes;
     else g_mem_current = 0;
@@ -128,28 +128,42 @@ Matrix combine(const Matrix &A11, const Matrix &A12,
 }
 
 Matrix operator+(const Matrix &A, const Matrix &B) {
-    int rows = static_cast<int>(A.size());
-    int cols = rows ? static_cast<int>(A[0].size()) : 0;
-    Matrix R = zeroMatrix(rows, cols);
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            R[i][j] = A[i][j] + B[i][j];
+    int Arows = static_cast<int>(A.size());
+    int Acols = static_cast<int>(A[0].size());
+    int Brows = static_cast<int>(B.size());
+    int Bcols = static_cast<int>(B[0].size());
+    Matrix R = zeroMatrix(std::max(Arows, Brows), std::max(Acols, Bcols));
+    for (int i = 0; i < Arows; ++i)
+        for (int j = 0; j < Acols; ++j)
+            R[i][j] = A[i][j];
+
+    for (int i = 0; i < Brows; ++i) {
+        for (int j = 0; j < Bcols; ++j) {
+            R[i][j] += B[i][j];
             ++g_adds;
         }
     }
+
     return R;
 }
 
 Matrix operator-(const Matrix &A, const Matrix &B) {
-    int rows = static_cast<int>(A.size());
-    int cols = rows ? static_cast<int>(A[0].size()) : 0;
-    Matrix R = zeroMatrix(rows, cols);
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            R[i][j] = A[i][j] - B[i][j];
+    int Arows = static_cast<int>(A.size());
+    int Acols = static_cast<int>(A[0].size());
+    int Brows = static_cast<int>(B.size());
+    int Bcols = static_cast<int>(B[0].size());
+    Matrix R = zeroMatrix(std::max(Arows, Brows), std::max(Brows, Bcols));
+    for (int i = 0; i < Arows; ++i)
+        for (int j = 0; j < Acols; ++j)
+            R[i][j] = A[i][j];
+
+    for (int i = 0; i < Brows; ++i) {
+        for (int j = 0; j < Bcols; ++j) {
+            R[i][j] -= B[i][j];
             ++g_subs;
         }
     }
+
     return R;
 }
 
@@ -158,8 +172,7 @@ Matrix operator*(const Matrix &A, const Matrix &B) {
     int q = p ? static_cast<int>(A[0].size()) : 0;
     int r = B.size() ? static_cast<int>(B[0].size()) : 0;
 
-    // account for this call's result allocation
-    memCounterEnterCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
+    memCounterEnterCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r), 1);
 
     Matrix C = zeroMatrix(p, r);
     for (int i = 0; i < p; ++i) {
@@ -175,7 +188,7 @@ Matrix operator*(const Matrix &A, const Matrix &B) {
     }
     g_adds -= p * r;
 
-    memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r));
+    memCounterExitCall(static_cast<std::size_t>(p), static_cast<std::size_t>(r), 1);
     return C;
 }
 

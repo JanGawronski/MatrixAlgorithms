@@ -19,14 +19,12 @@ Matrix multiplyRec(const Matrix &A, const Matrix &B) {
         throw std::runtime_error("Incompatible dimensions for multiplication");
     }
 
-
-    memCounterEnterCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
-
     if (Arows == 1 || Acols == 1 || Bcols == 1) {
         Matrix M = A * B;
-        memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
         return M;
     }
+
+    memCounterEnterCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols), 3);
 
     int A11width = Acols / 2;
     int A12width = Acols - A11width;
@@ -53,7 +51,7 @@ Matrix multiplyRec(const Matrix &A, const Matrix &B) {
 
     Matrix M = combine(C11, C12, C21, C22);
 
-    memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols));
+    memCounterExitCall(static_cast<std::size_t>(Arows), static_cast<std::size_t>(Bcols), 3);
     return M;
 }
 

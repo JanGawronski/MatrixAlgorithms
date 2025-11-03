@@ -1,10 +1,11 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -O2 -Wall -Wextra
+DEBUGFLAGS = -std=c++17 -g -O0 -Wall -Wextra
 TARGET = matmul.exe
 SOURCES = main.cpp SupportFunctions.cpp Binet.cpp Strassen.cpp AI.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
-.PHONY: all clean run batch
+.PHONY: all clean run batch debug
 
 all: $(TARGET)
 
@@ -22,6 +23,9 @@ run: $(TARGET)
 
 batch: $(TARGET)
 	./$(TARGET) sizes.txt 1
+
+debug: CXXFLAGS = $(DEBUGFLAGS)
+debug: clean all
 
 # Dependencies (optional, helps with incremental builds)
 main.o: main.cpp SupportFunctions.h Mnozenie.h Binet.h Strassen.h AI.h
