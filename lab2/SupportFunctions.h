@@ -11,13 +11,17 @@ void printSmall(const Matrix& M);
 // przeniesione funkcje pomocnicze dla wielu implementacji
 Matrix zeroMatrix(int rows, int cols);
 Matrix zeroMatrix(int n);
+Matrix identityMatrix(int n);
 Matrix subMatrix(const Matrix &A, int row, int col, int rows, int cols);
 Matrix operator+(const Matrix &A, const Matrix &B);
 Matrix operator-(const Matrix &A, const Matrix &B);
 Matrix operator*(const Matrix &A, const Matrix &B);
 Matrix combine(const Matrix &A11, const Matrix &A12,
                const Matrix &A21, const Matrix &A22);
-std::pair<bool,double> compareMatrices(const Matrix& X, const Matrix& Y, double tol = 1e-9);
+Matrix negate(const Matrix &A);
+std::pair<bool,double> compareMatrices(const Matrix& X, const Matrix& Y, double tol);
+Matrix pad(const Matrix& A, int rows, int cols);
+Matrix trim(const Matrix& A, int rows, int cols);
 int rows(const Matrix& M);
 int cols(const Matrix& M);
 

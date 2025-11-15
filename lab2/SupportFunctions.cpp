@@ -73,10 +73,16 @@ Matrix createRandomMatrix(int n) {
     return createRandomMatrix(n, n);
 }
 
+Matrix identityMatrix(int n) {
+    Matrix I = zeroMatrix(n, n);
+    for (int i = 0; i < n; ++i)
+        I[i][i] = 1.0;
+    return I;
+}
 
 void printSmall(const Matrix& M) {
-    for (size_t i = 0; i < M.size(); ++i) {
-        for (size_t j = 0; j < M[i].size(); ++j)
+    for (int i = 0; i < rows(M); ++i) {
+        for (int j = 0; j < cols(M); ++j)
             std::cout << std::setprecision(6) << std::setw(12) << M[i][j];
         std::cout << '\n';
     }
@@ -119,6 +125,22 @@ Matrix combine(const Matrix &A11, const Matrix &A12,
             A[i + rows(A11)][j + cols(A11)] = A22[i][j];
 
     return A;
+}
+
+Matrix pad(const Matrix& A, int newRows, int newCols) {
+    Matrix P = zeroMatrix(newRows, newCols);
+    for (int i = 0; i < rows(A); ++i)
+        for (int j = 0; j < cols(A); ++j)
+            P[i][j] = A[i][j];
+    return P;
+}
+
+Matrix trim(const Matrix& A, int rows, int cols) {
+    Matrix T = zeroMatrix(rows, cols);
+    for (int i = 0; i < rows; ++i)
+        for (int j = 0; j < cols; ++j)
+            T[i][j] = A[i][j];
+    return T;
 }
 
 int rows(const Matrix& M) {
@@ -180,6 +202,16 @@ Matrix operator*(const Matrix &A, const Matrix &B) {
 
     memCounterExitCall(rows(A), cols(B), 1);
     return C;
+}
+
+Matrix negate(const Matrix &A) {
+    Matrix R = zeroMatrix(rows(A), cols(A));
+    for (int i = 0; i < rows(A); ++i)
+        for (int j = 0; j < cols(A); ++j) {
+            R[i][j] = -A[i][j];
+            ++g_subs;
+        }
+    return R;
 }
 
 std::pair<bool,double> compareMatrices(const Matrix& X, const Matrix& Y, double tol) {

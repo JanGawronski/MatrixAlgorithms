@@ -12,6 +12,7 @@
 #include "Mnozenie.h"
 #include "Binet.h"
 #include "Strassen.h"
+#include "Inverse.h"
 
 int main(int argc, char** argv) {
     if (argc >= 2) { //batch mode
@@ -52,18 +53,9 @@ int main(int argc, char** argv) {
             outpath = "results.txt";
         }
 
-        std::unique_ptr<IMnozenie> multiplyImpl;
-        switch (argv[1][0]) {
-            case '1':
-                multiplyImpl = createBinet();
-                break;
-            case '2':
-                multiplyImpl = createStrassen();
-                break;
-            default:
-                std::cerr << "Unknown method: " << argv[1] << "\n";
-                return 1;
-        }
+        int choice = argv[1][0] - '0';
+
+        std::unique_ptr<IMnozenie> impl = choice % 2 == 1 ? createBinet() : createStrassen();
 
         std::ofstream out(outpath);
         if (!out.is_open()) {
@@ -80,19 +72,24 @@ int main(int argc, char** argv) {
             std::cout << "N=" << std::setw(4) << N << " ... ";
             std::cout.flush();
 
-            auto A = createRandomMatrix(N);
-            auto B = createRandomMatrix(N);
-            if (rows(A) != N || rows(B) != N) {
-                out << N << " " << -1 << " 0 0 0 0 0 0\n";
-                std::cout << "ERROR (creating matrix)\n";
-                continue;
-            }
+            Matrix A = createRandomMatrix(N);
+            Matrix B = {};
 
-            
             opCounterReset();
             memCounterReset();
             auto t0 = std::chrono::high_resolution_clock::now();
-            Matrix C = multiplyImpl->multiply(A, B);
+
+            switch (choice)
+            {
+            case 1:
+            case 2:
+                B = inverse(A, impl);
+                break;
+            default:
+                break;
+            }
+            
+
             auto t1 = std::chrono::high_resolution_clock::now();
             OpCounts ops = opCounterGet();
             MemStats ms = memCounterGet();
@@ -112,72 +109,68 @@ int main(int argc, char** argv) {
 
         out.close();
     } else {
-        std::cout << "Podaj rozmiar macierzy N (NxN): ";
+        std::cout << "Enter matrix size N (NxN): ";
         int N;
         if (!(std::cin >> N) || N <= 0) {
-            std::cerr << "Niepoprawny rozmiar.\n";
+            std::cerr << "Incorrect size.\n";
             return 1;
         }
 
         int choice;
-        std::cout << "Wybierz metode:\n";
-        std::cout << "1) Binet (rekurencyjnie bez padowania)\n";
-        std::cout << "2) Strassen\n";
-        std::cout << "3) AI\n";
-        std::cout << "Wybor (domyslnie 1): ";
+        std::cout << "Choose operation:\n";
+        std::cout << "1) Inverse matrix (Binet)\n";
+        std::cout << "2) Inverse matrix (Strassen)\n";
+        std::cout << "3) Gauss elimination (Binet)\n";
+        std::cout << "4) Gauss elimination (Strassen)\n";
+        std::cout << "5) LU factorization (Binet)\n";
+        std::cout << "6) LU factorization (Strassen)\n";
+        std::cout << "Choice: ";
         if (!(std::cin >> choice)) choice = 1;
 
-        std::unique_ptr<IMnozenie> impl;
-        switch (choice) {
-            case 1:
-                impl = createBinet();
-                break;
-            case 2:
-                impl = createStrassen();
-                break;
-            default:
-                std::cerr << "Wybrana metoda (" << choice << ") niezaimplementowana. Uzywam Binet (1).\n";
-                impl = createBinet();
-        }
-    
-        auto A = createRandomMatrix(N);
-        auto B = createRandomMatrix(N);
-
-        if (choice == 3) {
-            A = createRandomMatrix(4, 5);
-            B = createRandomMatrix(5, 5);        
-        }
+        Matrix A = createRandomMatrix(N);
+        Matrix B = {};
+        std::unique_ptr<IMnozenie> impl = choice % 2 == 1 ? createBinet() : createStrassen();
 
         opCounterReset();
         memCounterReset();
         auto t0 = std::chrono::high_resolution_clock::now();
-        Matrix C = impl->multiply(A, B);
+        switch (choice) {
+            case 1:
+                B = inverse(A, impl);
+                break;
+            case 2:
+                B = inverse(A, impl);
+                break;
+            default:
+                std::cerr << "Incorrect method.\n";
+                return 1;
+        }
         auto t1 = std::chrono::high_resolution_clock::now();
         OpCounts ops = opCounterGet();
         MemStats ms = memCounterGet();
         std::chrono::duration<double> elapsed = t1 - t0;
 
-        std::cout << "Czas (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
+        std::cout << "Time (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
         std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
                     << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
         std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
-
-        Matrix C_ref = A * B;
-        auto [ok, maxdiff] = compareMatrices(C, C_ref, 1e-9);
-        if (ok) {
-            std::cout << "Macierze zgodne (roznica max " << std::setprecision(12) << maxdiff << ")\n";
-        } else {
-            std::cout << "Macierze NIEZGODNE! (roznica max " << std::setprecision(12) << maxdiff << ")\n";
-        }
         
-        if (N <= 12) {
-            std::cout << "A:\n"; printSmall(A);
-            std::cout << "B:\n"; printSmall(B);
-            std::cout << "C = A * B:\n"; printSmall(C);
-            std::cout << "C - C_ref:\n"; printSmall(C - C_ref);
-        } else {
-            std::cout << "C[0][0] = " << std::setprecision(12) << C[0][0] << "\n";
-            std::cout << "C[N-1][N-1] = " << C[N-1][N-1] << "\n";
+        if (choice == 1 || choice == 2) {
+            Matrix C = A * B;
+            auto [equal, max_err] = compareMatrices(C, identityMatrix(N), 1e-6);
+            if (equal) {
+                std::cout << "Inverse check passed (max error=" << std::setprecision(3) << max_err << ")\n";
+            } else {
+                std::cout << "Inverse check FAILED (max error=" << std::setprecision(3) << max_err << ")\n";
+            }
+            if (N <= 12) {
+                std::cout << "A:\n"; printSmall(A);
+                std::cout << "B:\n"; printSmall(B);
+                std::cout << "A*B:\n"; printSmall(C);
+            } else {
+                std::cout << "B[0][0] = " << std::setprecision(12) << B[0][0] << "\n";
+                std::cout << "B[N-1][N-1] = " << B[N-1][N-1] << "\n";
+            }
         }
     }
 
