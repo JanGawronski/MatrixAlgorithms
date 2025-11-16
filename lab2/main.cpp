@@ -14,6 +14,7 @@
 #include "Strassen.h"
 #include "Inverse.h"
 #include "LUfactorization.h"
+#include "GaussElimination.h"
 
 int main(int argc, char** argv) {
     if (argc >= 2) { //batch mode
@@ -74,6 +75,7 @@ int main(int argc, char** argv) {
             std::cout.flush();
 
             Matrix A = createRandomMatrix(N);
+            Matrix b = createRandomMatrix(N, 1);
 
             opCounterReset();
             memCounterReset();
@@ -84,8 +86,11 @@ int main(int argc, char** argv) {
             case 0:
                 inverse(A, impl);
                 break;
-            case 2:
+            case 1:
                 LUfactorization(A, impl);
+                break;
+            case 2:
+                GaussElimination(A, b, impl);
                 break;
             default:
                 break;
@@ -162,6 +167,33 @@ int main(int argc, char** argv) {
                 } else {
                     std::cout << "B[0][0] = " << std::setprecision(12) << B[0][0] << "\n";
                     std::cout << "B[N-1][N-1] = " << B[N-1][N-1] << "\n";
+                }
+                break;
+            }
+            case 1: {
+                Matrix b = createRandomMatrix(N, 1);
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                auto [C, c] = GaussElimination(A, b, impl);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                std::cout << "Time (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
+                std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
+                            << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
+                std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
+
+                if (N <= 12) {
+                    std::cout << "A:\n"; printSmall(A);
+                    std::cout << "b:\n"; printSmall(b);
+                    std::cout << "C:\n"; printSmall(C);
+                    std::cout << "c:\n"; printSmall(c);
+                } else {
+                    std::cout << "A[0][0] = " << std::setprecision(12) << A[0][0] << "\n";
+                    std::cout << "A[N-1][N-1] = " << A[N-1][N-1] << "\n";
                 }
                 break;
             }
