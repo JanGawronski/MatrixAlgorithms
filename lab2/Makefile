@@ -2,7 +2,7 @@ CXX = g++
 CXXFLAGS = -std=c++17 -O2 -Wall -Wextra
 DEBUGFLAGS = -std=c++17 -g -O0 -Wall -Wextra
 TARGET = main.exe
-SOURCES = main.cpp SupportFunctions.cpp Binet.cpp Strassen.cpp Inverse.cpp
+SOURCES = main.cpp SupportFunctions.cpp Binet.cpp Strassen.cpp Inverse.cpp LUfactorization.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 .PHONY: all clean run batch debug
@@ -32,3 +32,4 @@ SupportFunctions.o: SupportFunctions.cpp SupportFunctions.h
 Binet.o: Binet.cpp Binet.h Mnozenie.h SupportFunctions.h
 Strassen.o: Strassen.cpp Strassen.h Mnozenie.h SupportFunctions.h
 Inverse.o: Inverse.cpp Inverse.h Mnozenie.h SupportFunctions.h
+LUfactorization.o: LUfactorization.cpp LUfactorization.h Mnozenie.h SupportFunctions.h

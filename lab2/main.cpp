@@ -13,6 +13,7 @@
 #include "Binet.h"
 #include "Strassen.h"
 #include "Inverse.h"
+#include "LUfactorization.h"
 
 int main(int argc, char** argv) {
     if (argc >= 2) { //batch mode
@@ -63,7 +64,7 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        out << "# N czas_s adds subs muls divs peak_bytes peak_calls\n";
+        out << "# N time_s adds subs muls divs peak_bytes peak_calls\n";
 
         for (size_t i = 0; i < sizes.size(); ++i) {
             int N = sizes[i];
@@ -73,23 +74,23 @@ int main(int argc, char** argv) {
             std::cout.flush();
 
             Matrix A = createRandomMatrix(N);
-            Matrix B = {};
 
             opCounterReset();
             memCounterReset();
             auto t0 = std::chrono::high_resolution_clock::now();
 
-            switch (choice)
+            switch ((choice - 1) / 2)
             {
-            case 1:
+            case 0:
+                inverse(A, impl);
+                break;
             case 2:
-                B = inverse(A, impl);
+                LUfactorization(A, impl);
                 break;
             default:
                 break;
             }
             
-
             auto t1 = std::chrono::high_resolution_clock::now();
             OpCounts ops = opCounterGet();
             MemStats ms = memCounterGet();
@@ -128,50 +129,82 @@ int main(int argc, char** argv) {
         if (!(std::cin >> choice)) choice = 1;
 
         Matrix A = createRandomMatrix(N);
-        Matrix B = {};
         std::unique_ptr<IMnozenie> impl = choice % 2 == 1 ? createBinet() : createStrassen();
 
-        opCounterReset();
-        memCounterReset();
-        auto t0 = std::chrono::high_resolution_clock::now();
-        switch (choice) {
-            case 1:
+        switch ((choice - 1) / 2) {
+            case 0: {
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                Matrix B = inverse(A, impl);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                std::cout << "Time (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
+                std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
+                            << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
+                std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
+                
                 B = inverse(A, impl);
+                Matrix C = A * B;
+                auto [equal, max_err] = compareMatrices(C, identityMatrix(N), 1e-6);
+                if (equal) {
+                    std::cout << "Inverse check passed (max error=" << std::setprecision(3) << max_err << ")\n";
+                } else {
+                    std::cout << "Inverse check FAILED (max error=" << std::setprecision(3) << max_err << ")\n";
+                }
+                if (N <= 12) {
+                    std::cout << "A:\n"; printSmall(A);
+                    std::cout << "B:\n"; printSmall(B);
+                    std::cout << "A*B:\n"; printSmall(C);
+                } else {
+                    std::cout << "B[0][0] = " << std::setprecision(12) << B[0][0] << "\n";
+                    std::cout << "B[N-1][N-1] = " << B[N-1][N-1] << "\n";
+                }
                 break;
-            case 2:
-                B = inverse(A, impl);
+            }
+            case 2: {
+                opCounterReset();
+                memCounterReset();
+                auto t0 = std::chrono::high_resolution_clock::now();
+                auto [L, U] = LUfactorization(A, impl);
+                auto t1 = std::chrono::high_resolution_clock::now();
+                OpCounts ops = opCounterGet();
+                MemStats ms = memCounterGet();
+                std::chrono::duration<double> elapsed = t1 - t0;
+
+                std::cout << "Time (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
+                std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
+                            << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
+                std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
+                std::cout << "Determinant: " << determinantLU(A, impl) << "\n";
+
+                Matrix LU = impl->multiply(L, U);
+                auto [equal, max_err] = compareMatrices(LU, A, 1e-6);
+                if (equal) {
+                    std::cout << "LU factorization check passed (max error=" << std::setprecision(3) << max_err << ")\n";
+                } else {
+                    std::cout << "LU factorization check FAILED (max error=" << std::setprecision(3) << max_err << ")\n";
+                }
+                if (N <= 12) {
+                    std::cout << "A:\n"; printSmall(A);
+                    std::cout << "L:\n"; printSmall(L);
+                    std::cout << "U:\n"; printSmall(U);
+                    std::cout << "L*U:\n"; printSmall(LU);
+                    std::cout << "L*U - A:\n"; printSmall(LU - A);
+                } else {
+                    std::cout << "L[0][0] = " << std::setprecision(12) << L[0][0] << "\n";
+                    std::cout << "U[N-1][N-1] = " << U[N-1][N-1] << "\n";
+                }
                 break;
+            }
             default:
                 std::cerr << "Incorrect method.\n";
                 return 1;
         }
-        auto t1 = std::chrono::high_resolution_clock::now();
-        OpCounts ops = opCounterGet();
-        MemStats ms = memCounterGet();
-        std::chrono::duration<double> elapsed = t1 - t0;
 
-        std::cout << "Time (s): " << std::fixed << std::setprecision(6) << elapsed.count() << "\n";
-        std::cout << "Op counts: adds=" << ops.adds << " subs=" << ops.subs
-                    << " muls=" << ops.muls << " divs=" << ops.divs << "\n";
-        std::cout << "Memory (bytes): peak=" << ms.peak_bytes << " (peak calls=" << ms.peak_calls << ")\n";
-        
-        if (choice == 1 || choice == 2) {
-            Matrix C = A * B;
-            auto [equal, max_err] = compareMatrices(C, identityMatrix(N), 1e-6);
-            if (equal) {
-                std::cout << "Inverse check passed (max error=" << std::setprecision(3) << max_err << ")\n";
-            } else {
-                std::cout << "Inverse check FAILED (max error=" << std::setprecision(3) << max_err << ")\n";
-            }
-            if (N <= 12) {
-                std::cout << "A:\n"; printSmall(A);
-                std::cout << "B:\n"; printSmall(B);
-                std::cout << "A*B:\n"; printSmall(C);
-            } else {
-                std::cout << "B[0][0] = " << std::setprecision(12) << B[0][0] << "\n";
-                std::cout << "B[N-1][N-1] = " << B[N-1][N-1] << "\n";
-            }
-        }
     }
 
     return 0;
