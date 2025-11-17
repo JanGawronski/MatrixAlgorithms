@@ -129,119 +129,118 @@ funkcja AIMultiply(A, B):
 ### 2.1. Implementacja Binet - rekurencja
 
 ```cpp
-Matrix BinetImpl::binetMultiplyRec(const Matrix& A, const Matrix& B, 
-                                    OpCounts& local_ops) {
-    int m = static_cast<int>(A.size());
-    int k = static_cast<int>(A[0].size());
-    int n = static_cast<int>(B[0].size());
-
-    // Przypadek bazowy: macierze 1×1
-    if (m == 1 && k == 1 && n == 1) {
-        local_ops.muls += 1;
-        return Matrix{{A[0][0] * B[0][0]}};
+Matrix multiplyRec(const Matrix &A, const Matrix &B) {
+    if (cols(A) != rows(B)) {
+        throw std::runtime_error("Incompatible dimensions for multiplication");
     }
 
-    // Podział na bloki
-    int m2 = m / 2, k2 = k / 2, n2 = n / 2;
-    auto [A11, A12, A21, A22] = splitMatrix(A, m2, k2);
-    auto [B11, B12, B21, B22] = splitMatrix(B, k2, n2);
+    if (rows(A) == 1 || cols(A) == 1 || cols(B) == 1) {
+        Matrix M = A * B;
+        return M;
+    }
 
-    // 8 rekurencyjnych mnożeń
-    Matrix C11 = addMatrices(
-        binetMultiplyRec(A11, B11, local_ops),
-        binetMultiplyRec(A12, B21, local_ops),
-        local_ops);
-    
-    Matrix C12 = addMatrices(
-        binetMultiplyRec(A11, B12, local_ops),
-        binetMultiplyRec(A12, B22, local_ops),
-        local_ops);
-    
-    Matrix C21 = addMatrices(
-        binetMultiplyRec(A21, B11, local_ops),
-        binetMultiplyRec(A22, B21, local_ops),
-        local_ops);
-    
-    Matrix C22 = addMatrices(
-        binetMultiplyRec(A21, B12, local_ops),
-        binetMultiplyRec(A22, B22, local_ops),
-        local_ops);
+    memCounterEnterCall(rows(A), cols(B), 3);
 
-    return joinBlocks(C11, C12, C21, C22);
+    int A11width = cols(A) / 2;
+    int A12width = cols(A) - A11width;
+    int A11height = rows(A) / 2;
+    int A21height = rows(A) - A11height;
+
+    int B11width = cols(B) / 2;
+    int B12width = cols(B) - B11width;
+    
+    Matrix A11 = subMatrix(A, 0, 0, A11height, A11width);
+    Matrix A12 = subMatrix(A, 0, A11width, A11height, A12width);
+    Matrix A21 = subMatrix(A, A11height, 0, A21height, A11width);
+    Matrix A22 = subMatrix(A, A11height, A11width, A21height, A12width);
+
+    Matrix B11 = subMatrix(B, 0, 0, A11width, B11width);
+    Matrix B12 = subMatrix(B, 0, B11width, A11width, B12width);
+    Matrix B21 = subMatrix(B, A11width, 0, A12width, B11width);
+    Matrix B22 = subMatrix(B, A11width, B11width, A12width, B12width);
+
+    Matrix C11 = multiplyRec(A11, B11) + multiplyRec(A12, B21);
+    Matrix C12 = multiplyRec(A11, B12) + multiplyRec(A12, B22);
+    Matrix C21 = multiplyRec(A21, B11) + multiplyRec(A22, B21);
+    Matrix C22 = multiplyRec(A21, B12) + multiplyRec(A22, B22);
+
+    Matrix M = combine(C11, C12, C21, C22);
+
+    memCounterExitCall(rows(A), cols(B), 3);
+    return M;
 }
 ```
 
 ### 2.2. Implementacja Strassen - 7 mnożeń
 
 ```cpp
-Matrix StrassenImpl::strassenMultiplyRec(const Matrix& A, const Matrix& B,
-                                          OpCounts& local_ops) {
-    int n = static_cast<int>(A.size());
-    
-    if (n <= STRASSEN_THRESHOLD) {
-        return naiveMultiply(A, B, local_ops);
+Matrix multiplyRec(const Matrix &A, const Matrix &B) {
+    if (rows(A) != cols(A) || cols(A) != rows(B) || rows(B) != cols(B)) {
+        throw std::runtime_error("Implemented only for square matrices");
     }
 
-    int half = n / 2;
-    auto [A11, A12, A21, A22] = splitMatrix(A, half, half);
-    auto [B11, B12, B21, B22] = splitMatrix(B, half, half);
-
-    // 7 iloczynów Strassena
-    Matrix M1 = strassenMultiplyRec(
-        addMatrices(A11, A22, local_ops), 
-        addMatrices(B11, B22, local_ops), 
-        local_ops);
-    
-    Matrix M2 = strassenMultiplyRec(
-        addMatrices(A21, A22, local_ops), B11, local_ops);
-    
-    Matrix M3 = strassenMultiplyRec(
-        A11, subMatrices(B12, B22, local_ops), local_ops);
-    
-    Matrix M4 = strassenMultiplyRec(
-        A22, subMatrices(B21, B11, local_ops), local_ops);
-    
-    Matrix M5 = strassenMultiplyRec(
-        addMatrices(A11, A12, local_ops), B22, local_ops);
-    
-    Matrix M6 = strassenMultiplyRec(
-        subMatrices(A21, A11, local_ops), 
-        addMatrices(B11, B12, local_ops), local_ops);
-    
-    Matrix M7 = strassenMultiplyRec(
-        subMatrices(A12, A22, local_ops), 
-        addMatrices(B21, B22, local_ops), local_ops);
-
-    // Składanie wyniku z M1-M7
-    Matrix C11 = addMatrices(
-        subMatrices(addMatrices(M1, M4, local_ops), M5, local_ops),
-        M7, local_ops);
-    
-    Matrix C12 = addMatrices(M3, M5, local_ops);
-    Matrix C21 = addMatrices(M2, M4, local_ops);
-    Matrix C22 = addMatrices(
-        subMatrices(addMatrices(M1, M3, local_ops), M2, local_ops),
-        M6, local_ops);
-
-    return joinBlocks(C11, C12, C21, C22);
-}
-```
-
-### 2.3. Liczenie operacji
-
-```cpp
-Matrix addMatrices(const Matrix& X, const Matrix& Y, OpCounts& ops) {
-    int rows = X.size();
-    int cols = X[0].size();
-    Matrix result = zeroMatrix(rows, cols);
-    
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
-            result[i][j] = X[i][j] + Y[i][j];
-            ops.adds += 1;  // Precyzyjne zliczanie
-        }
+    if (rows(A) == 1) {
+        return A * B;
     }
-    return result;
+
+    if (rows(A) % 2 == 0) {
+        int size = rows(A);
+        int halfSize = size / 2;
+        memCounterEnterCall(size, size, 4);
+    
+        Matrix A11 = subMatrix(A, 0, 0, halfSize, halfSize);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+        
+        Matrix B11 = subMatrix(B, 0, 0, halfSize, halfSize);
+        Matrix B12 = subMatrix(B, 0, halfSize, halfSize, halfSize);
+        Matrix B21 = subMatrix(B, halfSize, 0, halfSize, halfSize);
+        Matrix B22 = subMatrix(B, halfSize, halfSize, halfSize, halfSize);
+        
+        Matrix P1 = multiplyRec(A11 + A22, B11 + B22);
+        Matrix P2 = multiplyRec(A21 + A22, B11);
+        Matrix P3 = multiplyRec(A11, B12 - B22);
+        Matrix P4 = multiplyRec(A22, B21 - B11);
+        Matrix P5 = multiplyRec(A11 + A12, B22);
+        Matrix P6 = multiplyRec(A21 - A11, B11 + B12);
+        Matrix P7 = multiplyRec(A12 - A22, B21 + B22);
+
+        Matrix C11 = P1 + P4 - P5 + P7;
+        Matrix C12 = P3 + P5;
+        Matrix C21 = P2 + P4;
+        Matrix C22 = P1 + P3 - P2 + P6;
+
+        Matrix M = combine(C11, C12, C21, C22);
+
+        memCounterExitCall(size, size, 4);
+        return M;
+    } else {
+        int size = rows(A);
+
+        memCounterEnterCall(size, size, 4);
+
+        Matrix A11 = subMatrix(A, 0, 0, size - 1, size - 1);
+        Matrix A12 = subMatrix(A, 0, size - 1, size - 1, 1);
+        Matrix A21 = subMatrix(A, size - 1, 0, 1, size - 1);
+        Matrix A22 = subMatrix(A, size - 1, size - 1, 1, 1);
+
+        Matrix B11 = subMatrix(B, 0, 0, size - 1, size - 1);
+        Matrix B12 = subMatrix(B, 0, size - 1, size - 1, 1);
+        Matrix B21 = subMatrix(B, size - 1, 0, 1, size - 1);
+        Matrix B22 = subMatrix(B, size - 1, size - 1, 1, 1);
+
+        Matrix C11 = multiplyRec(A11, B11) + A12 * B21;
+        Matrix C12 = A11 * B12 + A12 * B22;
+        Matrix C21 = A21 * B11 + A22 * B21;
+        Matrix C22 = A21 * B12 + A22 * B22;
+
+        Matrix M = combine(C11, C12, C21, C22);
+
+        memCounterExitCall(size, size, 4);
+
+        return M;
+    }
 }
 ```
 
