@@ -1,0 +1,151 @@
+Matrix inverse(const Matrix &A, std::unique_ptr<IMnozenie> &multImpl) {
+    if (rows(A) == 1) {
+        Matrix invA = zeroMatrix(1, 1);
+        invA[0][0] = 1.0 / A[0][0];
+        opCounterAdd({0, 0, 0, 1});
+        return invA;
+    }
+
+    if (rows(A) % 2 == 0) {
+
+        memCounterEnterCall(rows(A), cols(A), 3);
+
+        int halfSize = rows(A) / 2;
+        Matrix invA11 = inverse(subMatrix(A, 0, 0, halfSize, halfSize), multImpl);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+
+        Matrix T1 = multImpl->multiply(invA11, A12);
+        Matrix T2 = multImpl->multiply(A21, invA11);
+        
+        Matrix invS22 = inverse(A22 - multImpl->multiply(A21, T1), multImpl);
+
+        Matrix T3 = multImpl->multiply(T1, invS22);
+
+        Matrix B11 = invA11 + multImpl->multiply(T3, T2);
+        Matrix B12 = negate(T3);
+        Matrix B21 = negate(multImpl->multiply(invS22, T2));
+        Matrix B22 = invS22;
+
+        memCounterExitCall(rows(A), cols(A), 3);
+        return combine(B11, B12, B21, B22);
+    } else {
+        Matrix A_padded = pad(A, rows(A) + 1, cols(A) + 1);
+        A_padded[rows(A)][cols(A)] = 1.0;
+        Matrix inv_padded = inverse(A_padded, multImpl);
+        return trim(inv_padded, rows(A), cols(A));
+    }
+}
+
+std::pair<Matrix, Matrix> GaussElimination(const Matrix &A, const Matrix &b, std::unique_ptr<IMnozenie> &multImpl) {
+    if (rows(A) == 1) {
+        return {A, b};
+    }
+
+    if (rows(A) % 2 == 0) {
+        memCounterEnterCall(rows(A), cols(A), 4);
+
+        int halfSize = rows(A) / 2;
+
+        Matrix A11 = subMatrix(A, 0, 0, halfSize, halfSize);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+
+        Matrix b1 = subMatrix(b, 0, 0, halfSize, 1);
+        Matrix b2 = subMatrix(b, halfSize, 0, halfSize, 1);
+
+        auto [L11, U11] = LUfactorization(A11, multImpl);
+
+        Matrix L11_inv = inverse(L11, multImpl);
+        Matrix U11_inv = inverse(U11, multImpl);
+
+        Matrix S1 = multImpl->multiply(A21, U11_inv);
+        Matrix S2 = multImpl->multiply(L11_inv, A12);
+        Matrix S3 = L11_inv * b1;
+
+        auto [LS, US] = LUfactorization(A22 - multImpl->multiply(S1, S2), multImpl);
+
+        Matrix LS_inv = inverse(LS, multImpl);
+
+        Matrix c1 = S3;
+        Matrix c2 = LS_inv * b2 - multImpl->multiply(LS_inv, S1) * S3;
+
+        Matrix C11 = U11;
+        Matrix C12 = multImpl->multiply(L11, A12);
+        Matrix C21 = zeroMatrix(halfSize, halfSize);
+        Matrix C22 = US;
+
+        Matrix C = combine(C11, C12, 
+                           C21, C22);
+        Matrix c = combine(c1, {}, 
+                           c2, {});
+
+        memCounterExitCall(rows(A), cols(A), 4);
+        return {C, c};
+    } else {
+        Matrix A_padded = pad(A, rows(A) + 1, rows(A) + 1);
+        Matrix b_padded = pad(b, rows(b) + 1, 1);
+        A_padded[rows(A)][rows(A)] = 1.0;
+        b_padded[rows(b)][0] = 0.0;
+        auto [C_padded, c_padded] = GaussElimination(A_padded, b_padded, multImpl);
+        Matrix C = trim(C_padded, rows(A), rows(A));
+        Matrix c = trim(c_padded, rows(b), 1);
+        return {C, c};
+    }
+}
+
+std::pair<Matrix, Matrix> LUfactorization(const Matrix &A, std::unique_ptr<IMnozenie> &multImpl) {
+    if (rows(A) == 1) {
+        Matrix L = identityMatrix(1);
+        Matrix U = A;
+        return {L, U};
+    }
+    
+    if (rows(A) % 2 == 0) {
+        memCounterEnterCall(rows(A), cols(A), 3);
+
+        int halfSize = rows(A) / 2;
+
+        Matrix A11 = subMatrix(A, 0, 0, halfSize, halfSize);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+
+        auto [L11, U11] = LUfactorization(A11, multImpl);
+
+        Matrix L11_inv = inverse(L11, multImpl);
+        Matrix U11_inv = inverse(U11, multImpl);
+
+        Matrix U12 = multImpl->multiply(L11_inv, A12);
+        Matrix L21 = multImpl->multiply(A21, U11_inv);
+
+        Matrix S = A22 - multImpl->multiply(L21, U12);
+
+        auto [L22, U22] = LUfactorization(S, multImpl);
+
+        Matrix L = combine(L11, zeroMatrix(halfSize, halfSize),
+                           L21, L22);
+        Matrix U = combine(U11, U12,
+                           zeroMatrix(halfSize, halfSize), U22);
+
+        memCounterExitCall(rows(A), cols(A), 3);
+        return {L, U};
+    } else {
+        Matrix A_padded = pad(A, rows(A) + 1, rows(A) + 1);
+        auto [L_padded, U_padded] = LUfactorization(A_padded, multImpl);
+        Matrix L = trim(L_padded, rows(A), rows(A));
+        Matrix U = trim(U_padded, rows(A), rows(A));
+        return {L, U};
+    }
+}
+
+double determinantLU(const Matrix &A, std::unique_ptr<IMnozenie> &multImpl) {
+    auto [_, U] = LUfactorization(A, multImpl);
+    double det = 1.0;
+    for (int i = 0; i < rows(U); ++i) {
+        det *= U[i][i];
+    }
+    return det;
+}

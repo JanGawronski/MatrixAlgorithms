@@ -1,0 +1,759 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage{fullpage}
+\usepackage[T1]{fontenc}
+\usepackage{multicol}
+\usepackage{amsmath}
+\numberwithin{figure}{subsection}
+\numberwithin{table}{subsection}
+\usepackage{listings}
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{green!50!black},
+  breaklines=true,
+  numbers=left,
+  numberstyle=\tiny,
+  frame=single,
+  captionpos=b
+}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{adjustbox}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=black,      
+    urlcolor=black,
+    pdftitle={Laboratorium 2},
+    pdfauthor={Marcel Duda, Jan Gawroński},
+    pdfpagemode=FullScreen,
+    }
+
+\title{\huge{Algorytmy macierzowe} \break \Large{Laboratorium 2}}
+\author{\large{Marcel Duda, Jan Gawroński}}
+\date{17.11.2025}
+
+\begin{document}
+    \maketitle
+
+    \section{Rekurencyjne odwracanie macierzy}
+    \begin{equation}
+    A = \begin{bmatrix}
+    A_{11} & A_{12} \\
+    A_{21} & A_{22}
+    \end{bmatrix}
+    \end{equation}
+    \begin{equation}
+    A^{-1} = \begin{bmatrix}
+    A_{11}^{-1} + A_{11}^{-1} A_{12} S_{22}^{-1} A_{21} A_{11}^{-1} & -A_{11}^{-1} A_{12} S_{22}^{-1} \\
+    -S_{22}^{-1} A_{21} A_{11}^{-1}  & S_{22}^{-1}
+    \end{bmatrix}
+    \end{equation}
+    gdzie $S_{22} = A_{22} - A_{21} A_{11}^{-1} A_{12}$,
+    jeśli $A$ jest macierzą $1 \times 1$, to $A^{-1} = \begin{bmatrix} \frac{1}{a_{11}} \end{bmatrix}$.
+
+    \subsection{Implementacja}
+    \begin{lstlisting}
+Matrix inverse(const Matrix &A, std::unique_ptr<IMnozenie> &multImpl) {
+    if (rows(A) == 1) {
+        Matrix invA = zeroMatrix(1, 1);
+        invA[0][0] = 1.0 / A[0][0];
+        opCounterAdd({0, 0, 0, 1});
+        return invA;
+    }
+    if (rows(A) % 2 == 0) {
+        memCounterEnterCall(rows(A), cols(A), 3);
+        int halfSize = rows(A) / 2;
+        Matrix invA11 = inverse(subMatrix(A, 0, 0, halfSize, halfSize), multImpl);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+
+        Matrix T1 = multImpl->multiply(invA11, A12);
+        Matrix T2 = multImpl->multiply(A21, invA11);
+        
+        Matrix invS22 = inverse(A22 - multImpl->multiply(A21, T1), multImpl);
+
+        Matrix T3 = multImpl->multiply(T1, invS22);
+
+        Matrix B11 = invA11 + multImpl->multiply(T3, T2);
+        Matrix B12 = negate(T3);
+        Matrix B21 = negate(multImpl->multiply(invS22, T2));
+        Matrix B22 = invS22;
+
+        memCounterExitCall(rows(A), cols(A), 3);
+        return combine(B11, B12, B21, B22);
+    } else {
+        Matrix A_padded = pad(A, rows(A) + 1, cols(A) + 1);
+        A_padded[rows(A)][cols(A)] = 1.0;
+        Matrix inv_padded = inverse(A_padded, multImpl);
+        return trim(inv_padded, rows(A), cols(A));
+    }
+}
+    \end{lstlisting}
+    
+    \subsection{Wykresy}
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Czas [s]},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=1,col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick]  table[x index=0,y index=1,col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Czas działania (Binet vs Strassen)}
+    \end{figure}
+
+    % --- additions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba dodawań},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=2,col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=2,col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji dodawania}
+    \end{figure}
+
+    % --- subtractions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba odejmowań},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=3,col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=3,col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji odejmowania}
+    \end{figure}
+
+    % --- multiplications ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba mnożeń},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=4,col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=4,col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji mnożenia}
+    \end{figure}
+
+    % --- divisions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba operacji dzielenia},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=5,col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=5,col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji dzielenia}
+    \end{figure}
+
+    % --- flops (sum) ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Flopsy (suma operacji)},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5}},col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5}},col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji zmiennoprzecinkowych (flops)}
+    \end{figure}
+
+    % --- pamięć (MB) ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Pamięć szczytowa [MB]},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={\thisrowno{6}/(1024*1024)},col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={\thisrowno{6}/(1024*1024)},col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie zużycia pamięci}
+    \end{figure}
+
+    % --- flops per second ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Flopsy / s},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={(\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5})/max(1e-12,\thisrowno{1})},col sep=space,comment chars=\#]{1.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={(\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5})/max(1e-12,\thisrowno{1})},col sep=space,comment chars=\#]{2.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Przepustowość (flops / s) porównanie}
+    \end{figure}
+
+    \section{Eliminacja Gaussa}
+    Dane A, b:
+    \begin{equation}
+    A = \begin{bmatrix}
+    A_{11} & A_{12} \\
+    A_{21} & A_{22}
+    \end{bmatrix}
+    \end{equation}
+    \begin{equation}
+    b = \begin{bmatrix}
+    b_1 \\
+    b_2
+    \end{bmatrix}
+    \end{equation}
+    \begin{equation}
+    \begin{bmatrix}
+    A_{11} & A_{12} \\
+    A_{21} & A_{22}
+    \end{bmatrix}
+    \begin{bmatrix}
+    x_1 \\
+    x_2
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+    b_1 \\
+    b_2
+    \end{bmatrix}
+    \end{equation}
+    \begin{equation}
+    A_{11} x_1 + A_{12} x_2 = b_1
+    \end{equation}
+    \begin{equation}
+    A_{21} x_1 + A_{22} x_2 = b_2
+    \end{equation}
+    \begin{equation}
+    A_{11} = L_{11} U_{11}
+    \end{equation}
+    \begin{equation}
+    S = A_{22} - A_{21} U_{11}^{-1} L_{11}^{-1} A_{12} = L_S U_S
+    \end{equation}
+    \begin{equation}
+    C = \begin{bmatrix}
+    U_{11} & L_{11} A_{12} \\
+    0 & U_S
+    \end{bmatrix}
+    \end{equation}
+    \begin{equation}
+    c = \begin{bmatrix}
+    L_{11}^{-1} b_1 \\
+    L_S^{-1} (b_2 - A_{21} U_{11}^{-1} L_{11}^{-1} b_1)
+    \end{bmatrix}
+    \end{equation}
+    Zwróć C, c.
+
+    \subsection{Implementacja}
+    \begin{lstlisting}
+std::pair<Matrix, Matrix> GaussElimination(const Matrix &A, const Matrix &b, std::unique_ptr<IMnozenie> &multImpl) {
+    if (rows(A) == 1) {
+        return {A, b};
+    }
+
+    if (rows(A) % 2 == 0) {
+        memCounterEnterCall(rows(A), cols(A), 4);
+
+        int halfSize = rows(A) / 2;
+
+        Matrix A11 = subMatrix(A, 0, 0, halfSize, halfSize);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+
+        Matrix b1 = subMatrix(b, 0, 0, halfSize, 1);
+        Matrix b2 = subMatrix(b, halfSize, 0, halfSize, 1);
+
+        auto [L11, U11] = LUfactorization(A11, multImpl);
+
+        Matrix L11_inv = inverse(L11, multImpl);
+        Matrix U11_inv = inverse(U11, multImpl);
+
+        Matrix S1 = multImpl->multiply(A21, U11_inv);
+        Matrix S2 = multImpl->multiply(L11_inv, A12);
+        Matrix S3 = L11_inv * b1;
+
+        auto [LS, US] = LUfactorization(A22 - multImpl->multiply(S1, S2), multImpl);
+
+        Matrix LS_inv = inverse(LS, multImpl);
+
+        Matrix c1 = S3;
+        Matrix c2 = LS_inv * b2 - multImpl->multiply(LS_inv, S1) * S3;
+
+        Matrix C11 = U11;
+        Matrix C12 = multImpl->multiply(L11, A12);
+        Matrix C21 = zeroMatrix(halfSize, halfSize);
+        Matrix C22 = US;
+
+        Matrix C = combine(C11, C12, 
+                           C21, C22);
+        Matrix c = combine(c1, {}, 
+                           c2, {});
+
+        memCounterExitCall(rows(A), cols(A), 4);
+        return {C, c};
+    } else {
+        Matrix A_padded = pad(A, rows(A) + 1, rows(A) + 1);
+        Matrix b_padded = pad(b, rows(b) + 1, 1);
+        A_padded[rows(A)][rows(A)] = 1.0;
+        b_padded[rows(b)][0] = 0.0;
+        auto [C_padded, c_padded] = GaussElimination(A_padded, b_padded, multImpl);
+        Matrix C = trim(C_padded, rows(A), rows(A));
+        Matrix c = trim(c_padded, rows(b), 1);
+        return {C, c};
+    }
+}
+    \end{lstlisting}
+    \subsection{Wykresy}
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Czas [s]},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=1,col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick]  table[x index=0,y index=1,col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Czas działania (Binet vs Strassen)}
+    \end{figure}
+
+    % --- additions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba dodawań},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=2,col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=2,col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji dodawania}
+    \end{figure}
+
+    % --- subtractions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba odejmowań},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=3,col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=3,col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji odejmowania}
+    \end{figure}
+
+    % --- multiplications ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba mnożeń},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=4,col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=4,col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji mnożenia}
+    \end{figure}
+
+    % --- divisions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba operacji dzielenia},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=5,col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=5,col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji dzielenia}
+    \end{figure}
+
+    % --- flops (sum) ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Flopsy (suma operacji)},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5}},col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5}},col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji zmiennoprzecinkowych (flops)}
+    \end{figure}
+
+    % --- pamięć (MB) ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Pamięć szczytowa [MB]},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={\thisrowno{6}/(1024*1024)},col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={\thisrowno{6}/(1024*1024)},col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie zużycia pamięci}
+    \end{figure}
+
+    % --- flops per second ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Flopsy / s},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={(\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5})/max(1e-12,\thisrowno{1})},col sep=space,comment chars=\#]{5.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={(\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5})/max(1e-12,\thisrowno{1})},col sep=space,comment chars=\#]{6.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Przepustowość (flops / s) porównanie}
+    \end{figure}
+
+    \section{LU faktoryzacja}
+    \begin{equation}
+    A = \begin{bmatrix}
+    A_{11} & A_{12} \\
+    A_{21} & A_{22}
+    \end{bmatrix}
+    \end{equation}
+    \begin{equation}
+    L_{11} U_{11} = LU(A_{11})
+    \end{equation}
+    \begin{equation}
+    S = A_{22} - A_{21} U_{11}^{-1} L_{11}^{-1} A_{12} = L_S U_S
+    \end{equation}
+    \begin{equation}
+    LU(A) = \begin{bmatrix}
+    L_{11} & 0 \\
+    A_{21} U_{11}^{-1} & L_S
+    \end{bmatrix}
+    \begin{bmatrix}
+    U_{11} & L_{11}^{-1} A_{12} \\
+    0 & U_S
+    \end{bmatrix}
+    \end{equation}
+    
+    Wyznacznik $A = LU$ to $\det(A) = \prod_{1}^{n} u_{nn}$.
+
+    \subsection{Implementacja}
+    \begin{lstlisting}
+std::pair<Matrix, Matrix> LUfactorization(const Matrix &A, std::unique_ptr<IMnozenie> &multImpl) {
+    if (rows(A) == 1) {
+        Matrix L = identityMatrix(1);
+        Matrix U = A;
+        return {L, U};
+    }
+    
+    if (rows(A) % 2 == 0) {
+        memCounterEnterCall(rows(A), cols(A), 3);
+
+        int halfSize = rows(A) / 2;
+
+        Matrix A11 = subMatrix(A, 0, 0, halfSize, halfSize);
+        Matrix A12 = subMatrix(A, 0, halfSize, halfSize, halfSize);
+        Matrix A21 = subMatrix(A, halfSize, 0, halfSize, halfSize);
+        Matrix A22 = subMatrix(A, halfSize, halfSize, halfSize, halfSize);
+
+        auto [L11, U11] = LUfactorization(A11, multImpl);
+
+        Matrix L11_inv = inverse(L11, multImpl);
+        Matrix U11_inv = inverse(U11, multImpl);
+
+        Matrix U12 = multImpl->multiply(L11_inv, A12);
+        Matrix L21 = multImpl->multiply(A21, U11_inv);
+
+        Matrix S = A22 - multImpl->multiply(L21, U12);
+
+        auto [L22, U22] = LUfactorization(S, multImpl);
+
+        Matrix L = combine(L11, zeroMatrix(halfSize, halfSize),
+                           L21, L22);
+        Matrix U = combine(U11, U12,
+                           zeroMatrix(halfSize, halfSize), U22);
+
+        memCounterExitCall(rows(A), cols(A), 3);
+        return {L, U};
+    } else {
+        Matrix A_padded = pad(A, rows(A) + 1, rows(A) + 1);
+        auto [L_padded, U_padded] = LUfactorization(A_padded, multImpl);
+        Matrix L = trim(L_padded, rows(A), rows(A));
+        Matrix U = trim(U_padded, rows(A), rows(A));
+        return {L, U};
+    }
+}
+
+double determinantLU(const Matrix &A, std::unique_ptr<IMnozenie> &multImpl) {
+    auto [_, U] = LUfactorization(A, multImpl);
+    double det = 1.0;
+    for (int i = 0; i < rows(U); ++i) {
+        det *= U[i][i];
+    }
+    return det;
+}
+    \end{lstlisting}
+
+    \subsection{Wykresy}
+        \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Czas [s]},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=1,col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick]  table[x index=0,y index=1,col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Czas działania (Binet vs Strassen)}
+    \end{figure}
+
+    % --- additions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba dodawań},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=2,col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=2,col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji dodawania}
+    \end{figure}
+
+    % --- subtractions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba odejmowań},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=3,col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=3,col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji odejmowania}
+    \end{figure}
+
+    % --- multiplications ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba mnożeń},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=4,col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=4,col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji mnożenia}
+    \end{figure}
+
+    % --- divisions ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Liczba operacji dzielenia},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y index=5,col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y index=5,col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji dzielenia}
+    \end{figure}
+
+    % --- flops (sum) ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Flopsy (suma operacji)},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5}},col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5}},col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie liczby operacji zmiennoprzecinkowych (flops)}
+    \end{figure}
+
+    % --- pamięć (MB) ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Pamięć szczytowa [MB]},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={\thisrowno{6}/(1024*1024)},col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={\thisrowno{6}/(1024*1024)},col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Porównanie zużycia pamięci}
+    \end{figure}
+
+    % --- flops per second ---
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}
+        \begin{axis}[
+          width=\textwidth, height=0.42\textwidth,
+          xlabel={Rozmiar macierzy (N)},
+          ylabel={Flopsy / s},
+          grid=both,
+          legend pos=north west,
+        ]
+          \addplot+[blue, mark=*, mark size=1, thick] table[x index=0,y expr={(\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5})/max(1e-12,\thisrowno{1})},col sep=space,comment chars=\#]{3.txt};
+          \addplot+[red, mark=triangle*, mark size=1, thick] table[x index=0,y expr={(\thisrowno{2}+\thisrowno{3}+\thisrowno{4}+\thisrowno{5})/max(1e-12,\thisrowno{1})},col sep=space,comment chars=\#]{4.txt};
+          \legend{Binet, Strassen}
+        \end{axis}
+      \end{tikzpicture}
+      \caption{Przepustowość (flops / s) porównanie}
+    \end{figure}
+
+\end{document}
