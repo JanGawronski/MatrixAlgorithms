@@ -256,7 +256,7 @@ Matrix addMatrices(const Matrix& X, const Matrix& Y, OpCounts& ops) {
 **Obserwacje:**
 - Czas rośnie wykładniczo zgodnie z przewidywaniami teoretycznymi
 - Strassen wyprzedza Binet począwszy od n ≈ 100
-- Dla n = 1000: Strassen jest ~45% szybszy
+- Dla n = 1000: Strassen jest 6 razy szybszy
 - Punkty przegięcia widoczne przy potęgach dwójki (optymalne podziały)
 
 ### 3.2. Czas wykonania (skala logarytmiczna)
@@ -288,7 +288,6 @@ Matrix addMatrices(const Matrix& X, const Matrix& Y, OpCounts& ops) {
 **Obserwacje:**
 - Proste linie w skali log-log potwierdzają charakter potęgowy
 - Współczynniki nachylenia zgodne z teorią
-- Strassen systematycznie poniżej Binet dla n > 64
 
 ---
 
@@ -300,7 +299,7 @@ Matrix addMatrices(const Matrix& X, const Matrix& Y, OpCounts& ops) {
 - Wzrost kwadratowy O(n²) dla obu algorytmów
 - Nieznaczna przewaga Binet (~5% mniej pamięci)
 - Główny koszt: przechowywanie bloków macierzy
-- Dla n = 1000: ~8-9 MB szczytowego zużycia
+- Dla n = 1000: 30-40 MB szczytowego zużycia
 
 ### 3.6. Zużycie pamięci (skala logarytmiczna)
 
@@ -310,20 +309,6 @@ Matrix addMatrices(const Matrix& X, const Matrix& Y, OpCounts& ops) {
 
 ## 4. Analiza złożoności obliczeniowej
 
-### 4.1. Dopasowanie krzywych
-
-![Analiza złożoności](wykres_zlozonosc.png)
-
-### 4.2. Wyniki eksperymentalne
-
-**Dopasowanie metodą najmniejszych kwadratów:**
-
-| Algorytm | Złożoność zmierzona | Złożoność teoretyczna | Błąd |
-|----------|---------------------|----------------------|------|
-| **Binet** | O(n^2.98 ± 0.02) | O(n³) | 0.7% |
-| **Strassen** | O(n^2.81 ± 0.01) | O(n^2.807) | 0.1% |
-
-### 4.3. Analiza teoretyczna
 
 #### Binet - Master Theorem:
 
@@ -362,19 +347,19 @@ Co przekłada się na ~40% mniej operacji w praktyce
 
 ```
 n = 100:
-  Binet:    2,011,651 operacji | 0.018s
-  Strassen: 1,810,459 operacji | 0.014s
-  Zysk:     10.0% operacji     | 22% czasu
+  Binet:    2,011,651 operacji | 0.111s
+  Strassen: 1,810,459 operacji | 0.067s
+  Zysk:     10.0% operacji     | 40% czasu
 
 n = 500:
-  Binet:    251,456,275 operacji | 2.34s
-  Strassen: 181,034,890 operacji | 1.48s
-  Zysk:     28.0% operacji       | 37% czasu
+  Binet:    251,456,275 operacji | 21.1s
+  Strassen: 181,034,890 operacji | 4.004090
+  Zysk:     28.0% operacji       | 75% czasu
 
 n = 1000:
-  Binet:    2,011,651,000 operacji | 18.9s
-  Strassen: 1,220,890,450 operacji | 10.8s
-  Zysk:     39.3% operacji         | 43% czasu
+  Binet:    2,011,651,000 operacji | 165.56s
+  Strassen: 1,220,890,450 operacji | 26.85s
+  Zysk:     39.3% operacji         | 85% czasu
 ```
 
 ### 4.5. Wnioski z analizy
@@ -429,22 +414,13 @@ Strassen:
   Razem: 8,980,000,000 cykli
 
 Teoretyczny zysk: ~10.2%
-Praktyczny zysk: ~43% (cache effects, pipelining)
 ```
 
 ---
 
 ## 6. Podsumowanie
 
-### 6.1. Osiągnięcia
-
-✅ Zaimplementowano 3 algorytmy: Binet, Strassen, AI  
-✅ Przeprowadzono pomiary dla n ∈ [1, 1000]  
-✅ Potwierdzono złożoność teoretyczną (błąd < 1%)  
-✅ Porównano wydajność praktyczną algorytmów  
-✅ Przeanalizowano strukturę operacji  
-
-### 6.2. Wnioski
+### 6.1. Wnioski
 
 #### Binet:
 **Zalety:** Prostota, przewidywalność, uniwersalność  
@@ -461,7 +437,7 @@ Praktyczny zysk: ~43% (cache effects, pipelining)
 **Wady:** Działa tylko dla 4×5 × 5×5  
 **Zastosowanie:** Wyspecjalizowane aplikacje
 
-### 6.3. Rekomendacje
+### 6.2. Rekomendacje
 
 ```
 Wybór algorytmu:
@@ -471,14 +447,14 @@ Wybór algorytmu:
   Specjalne:  AI (optymalizacje dla konkretnych rozmiarów)
 ```
 
-### 6.4. Wyniki liczbowe
+### 6.3. Wyniki liczbowe
 
 | Metryka | Binet | Strassen | Różnica |
 |---------|-------|----------|---------|
 | Złożoność | O(n³) | O(n^2.807) | -6.4% wykładnik |
-| Czas (n=1000) | 18.9s | 10.8s | **-43%** |
+| Czas (n=1000) | 160s | 25s | **-85%** |
 | Operacje (n=1000) | 2.0×10⁹ | 1.2×10⁹ | **-40%** |
-| Pamięć (n=1000) | 8.0 MB | 8.5 MB | +6% |
+| Pamięć (n=1000) | 30 MB | 45 MB | **+50%** |
 
 ---
 
