@@ -1,0 +1,233 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage{fullpage}
+\usepackage[T1]{fontenc}
+\usepackage{multicol}
+\usepackage{amsmath}
+\numberwithin{figure}{subsection}
+\numberwithin{table}{subsection}
+\usepackage{listings}
+\lstset{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray},
+  stringstyle=\color{green!50!black},
+  breaklines=true,
+  numbers=left,
+  numberstyle=\tiny,
+  frame=single,
+  captionpos=b
+}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{adjustbox}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\usepackage{pgfplotstable}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=black,      
+    urlcolor=black,
+    pdftitle={Laboratorium 3},
+    pdfauthor={Marcel Duda, Jan Gawroński},
+    pdfpagemode=FullScreen,
+    }
+
+\title{\huge{Algorytmy macierzowe} \break \Large{Laboratorium 3}}
+\author{\large{Marcel Duda, Jan Gawroński}}
+\date{12.01.2026}
+
+\begin{document}
+    \maketitle
+    \section{Kod}
+    \begin{lstlisting}
+TreeNode* createTree(const Matrix &A, int rank, double epsilon) {
+  auto [U, D, V] = svd_decomposition(A, rank);
+
+  if (static_cast<int>(D.size()) < rank || D[rank - 1] < epsilon) {
+    if (allclose_zero(A, 1e-10)) {
+      TreeNode* node = new TreeNode();
+      node->singularValues = zeroMatrix(1, rank)[0];
+      node->U = zeroMatrix(rows(A), rank);
+      node->V = zeroMatrix(rank, cols(A));
+      return node;
+    }
+    TreeNode* node = new TreeNode();
+    node->singularValues = D;
+    node->U = subMatrix(U, 0, 0, rows(U), static_cast<int>(D.size()));
+    node->V = subMatrix(V, 0, 0, static_cast<int>(D.size()), cols(V));
+    return node;
+  }
+  TreeNode* node = new TreeNode();
+  int rmid = rows(A) / 2;
+  int cmid = cols(A) / 2;
+  node->topLeft = createTree(subMatrix(A, 0, 0, rmid, cmid), rank, epsilon);
+  node->topRight = createTree(subMatrix(A, 0, cmid, rmid, cols(A) - cmid), rank, epsilon);
+  node->bottomLeft = createTree(subMatrix(A, rmid, 0, rows(A) - rmid, cmid), rank, epsilon);
+  node->bottomRight = createTree(subMatrix(A, rmid, cmid, rows(A) - rmid, cols(A) - cmid), rank, epsilon);    
+  return node;
+}
+
+Matrix reconstructFromTree(TreeNode* node) {
+  if (node->topLeft == nullptr && node->topRight == nullptr &&
+    node->bottomLeft == nullptr && node->bottomRight == nullptr) {
+    int r = static_cast<int>(node->singularValues.size());
+    Matrix S = zeroMatrix(r, r);
+    for (int i = 0; i < r; ++i) S[i][i] = node->singularValues[i];
+    return node->U * S * node->V;
+  }
+  Matrix A11 = reconstructFromTree(node->topLeft);
+  Matrix A12 = reconstructFromTree(node->topRight);
+  Matrix A21 = reconstructFromTree(node->bottomLeft);
+  Matrix A22 = reconstructFromTree(node->bottomRight);
+  return combine(A11, A12, A21, A22);
+}
+
+
+std::pair<Vector, double> power_iteration(const Matrix &A, int num_simulations) {
+  size_t n = A.size();
+  std::mt19937_64 gen(std::random_device{}());
+  std::uniform_real_distribution<double> dist(0.0, 1.0);
+  Vector b_k(n);
+  for (size_t i = 0; i < n; ++i) b_k[i] = dist(gen);
+
+  for (int it = 0; it < num_simulations; ++it) {
+    Vector b_k1 = mat_vec_mul(A, b_k);
+    double norm = vec_norm(b_k1);
+    if (norm == 0.0) break;
+    for (size_t i = 0; i < n; ++i) b_k[i] = b_k1[i] / norm;
+  }
+  Vector Ab = mat_vec_mul(A, b_k);
+  double denom = vec_dot(b_k, b_k);
+  double eigenvalue = denom == 0.0 ? 0.0 : vec_dot(b_k, Ab) / denom;
+  return {b_k, eigenvalue};
+}
+
+
+std::tuple<Matrix, Vector, Matrix> svd_decomposition(const Matrix &A, int r, double epsilon) {
+  size_t m = A.size(), n = A.empty() ? 0 : A[0].size();
+  Matrix U(m, Vector(r, 0.0));
+  Matrix V(r, Vector(n, 0.0));
+  Vector S;
+  Matrix B = transpose_mul(A);
+  int num_valid = 0;
+
+  for (int i = 0; i < r; ++i) {
+    auto [v, sigma_squared] = power_iteration(B);
+    if (sigma_squared < epsilon * epsilon) break;
+    double sigma = std::sqrt(sigma_squared);
+    S.push_back(sigma);
+    if ((size_t)i < V.size()) V[i] = v;
+    Vector u = mat_vec_mul(A, v);
+    if (sigma != 0.0) for (double &x : u) x /= sigma;
+    for (size_t r = 0; r < m; ++r) U[r][num_valid] = u[r];
+    for (size_t p = 0; p < n; ++p)
+        for (size_t q = 0; q < n; ++q)
+            B[p][q] -= sigma_squared * v[p] * v[q];
+    ++num_valid;
+    if (allclose_zero(B, epsilon)) break;
+  }
+
+  Matrix U_trim(m, Vector(num_valid));
+  Matrix V_trim(num_valid, Vector(n));
+  for (size_t r = 0; r < m; ++r)
+    for (int c = 0; c < num_valid; ++c)
+      U_trim[r][c] = U[r][c];
+  for (int r = 0; r < num_valid; ++r)
+    for (size_t c = 0; c < n; ++c)
+      V_trim[r][c] = V[r][c];
+
+  return {U_trim, S, V_trim};
+}
+    \end{lstlisting}
+
+
+    \section{Wartości osobliwe}
+    \begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+    \begin{groupplot}[group style={group size=1 by 3, vertical sep=1cm}, width=\linewidth, height=5cm]
+    \nextgroupplot[ylabel={Wartość osobliwa}]
+    \addplot[red, thick, mark=none] table [x index=0, y index=1] {r.dat};
+    \nextgroupplot[ylabel={Wartość osobliwa}]
+    \addplot[green!50!black, thick, mark=none] table [x index=0, y index=1] {g.dat};
+    \nextgroupplot[ylabel={Wartość osobliwa}]
+    \addplot[blue, thick, mark=none] table [x index=0, y index=1] {b.dat};
+    \end{groupplot}
+    \end{tikzpicture}
+      \caption{Wartości osobliwe dla kanałów R, G, B.}
+    \end{figure}
+    \section{Obrazy}
+    \begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{doge.png}
+    \caption*{doge.png}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{dogeR.png}
+    \caption*{dogeR.png}
+    \end{minipage}
+
+    \vspace{0.8em}
+
+    \begin{minipage}{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{dogeG.png}
+    \caption*{dogeG.png}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{dogeB.png}
+    \caption*{dogeB.png}
+    \end{minipage}
+
+    \caption{Doge oryginalny oraz obrazy kanałów R/G/B.}
+    \end{figure}
+
+    \section{Kompresje}
+    \newcommand{\showcase}[2]{
+      \subsection*{r = #1, e = #2}
+      \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.32\linewidth]{doge_R_compressed_r=#1_e=#2.png}\hfill
+      \includegraphics[width=0.32\linewidth]{doge_G_compressed_r=#1_e=#2.png}\hfill
+      \includegraphics[width=0.32\linewidth]{doge_B_compressed_r=#1_e=#2.png}
+
+      \vspace{0.6em}
+
+      \includegraphics[width=0.32\linewidth]{doge_R_reconstructed_r=#1_e=#2.png}\hfill
+      \includegraphics[width=0.32\linewidth]{doge_G_reconstructed_r=#1_e=#2.png}\hfill
+      \includegraphics[width=0.32\linewidth]{doge_B_reconstructed_r=#1_e=#2.png}
+
+      \vspace{0.6em}
+
+      \includegraphics[width=0.6\linewidth]{doge_reconstructed_r=#1_e=#2.png}
+
+      \caption{Kompresja dla $r=#1$, $e=#2$. Góra: macierze skompresowane (R,G,B). Środek: odtworzone kanały R,G,B. Dół: obraz RGB złożony.}
+      \end{figure}
+    }
+
+    % six cases
+    \showcase{2}{0.000000}
+    \showcase{2}{0.500000}
+    \showcase{2}{1.000000}
+    \showcase{4}{0.000000}
+    \showcase{4}{0.500000}
+    \showcase{4}{1.000000}
+
+
+    
+\end{document}
