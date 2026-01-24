@@ -2,8 +2,12 @@
 #include <random>
 #include <iomanip>
 #include <vector>
+
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
 #include <cstring>
 
 Matrix createRandomMatrix(int m, int n) {
@@ -293,9 +297,13 @@ bool saveImageRGB(const std::string& filename, const Matrix& R, const Matrix& G,
             double rv = R[y][x];
             double gv = G[y][x];
             double bv = B[y][x];
-            int ri = static_cast<int>(std::round(std::clamp(rv, 0.0, 1.0) * 255.0));
-            int gi = static_cast<int>(std::round(std::clamp(gv, 0.0, 1.0) * 255.0));
-            int bi = static_cast<int>(std::round(std::clamp(bv, 0.0, 1.0) * 255.0));
+            // Clamp values to [0, 1] range
+            rv = (rv < 0.0) ? 0.0 : (rv > 1.0) ? 1.0 : rv;
+            gv = (gv < 0.0) ? 0.0 : (gv > 1.0) ? 1.0 : gv;
+            bv = (bv < 0.0) ? 0.0 : (bv > 1.0) ? 1.0 : bv;
+            int ri = static_cast<int>(std::round(rv * 255.0));
+            int gi = static_cast<int>(std::round(gv * 255.0));
+            int bi = static_cast<int>(std::round(bv * 255.0));
             buf[idx++] = static_cast<unsigned char>(ri);
             buf[idx++] = static_cast<unsigned char>(gi);
             buf[idx++] = static_cast<unsigned char>(bi);
@@ -307,4 +315,25 @@ bool saveImageRGB(const std::string& filename, const Matrix& R, const Matrix& G,
     return ok != 0;
 }
 
-bool save
+bool saveImageGray(const std::string& filename, const Matrix& Gray) {
+    if (rows(Gray) == 0 || cols(Gray) == 0) return false;
+
+    int h = rows(Gray);
+    int w = cols(Gray);
+    size_t bufSize = static_cast<size_t>(w) * static_cast<size_t>(h);
+    unsigned char *buf = new unsigned char[bufSize];
+    size_t idx = 0;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            double val = Gray[y][x];
+            // Clamp to [0, 1]
+            val = (val < 0.0) ? 0.0 : (val > 1.0) ? 1.0 : val;
+            int intensity = static_cast<int>(std::round(val * 255.0));
+            buf[idx++] = static_cast<unsigned char>(intensity);
+        }
+    }
+
+    int ok = stbi_write_png(filename.c_str(), w, h, 1, buf, w);
+    delete[] buf;
+    return ok != 0;
+}
