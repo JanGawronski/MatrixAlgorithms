@@ -3,9 +3,7 @@
 #include <iomanip>
 #include <vector>
 
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 #include <cstring>
@@ -289,24 +287,13 @@ bool saveImageRGB(const std::string& filename, const Matrix& R, const Matrix& G,
 
     int h = rows(R);
     int w = cols(R);
-    size_t bufSize = static_cast<size_t>(w) * static_cast<size_t>(h) * 3;
-    unsigned char *buf = new unsigned char[bufSize];
+    unsigned char *buf = new unsigned char[h * w * 3];
     size_t idx = 0;
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
-            double rv = R[y][x];
-            double gv = G[y][x];
-            double bv = B[y][x];
-            // Clamp values to [0, 1] range
-            rv = (rv < 0.0) ? 0.0 : (rv > 1.0) ? 1.0 : rv;
-            gv = (gv < 0.0) ? 0.0 : (gv > 1.0) ? 1.0 : gv;
-            bv = (bv < 0.0) ? 0.0 : (bv > 1.0) ? 1.0 : bv;
-            int ri = static_cast<int>(std::round(rv * 255.0));
-            int gi = static_cast<int>(std::round(gv * 255.0));
-            int bi = static_cast<int>(std::round(bv * 255.0));
-            buf[idx++] = static_cast<unsigned char>(ri);
-            buf[idx++] = static_cast<unsigned char>(gi);
-            buf[idx++] = static_cast<unsigned char>(bi);
+            buf[idx++] = R[y][x] * 255; 
+            buf[idx++] = G[y][x] * 255; 
+            buf[idx++] = B[y][x] * 255;
         }
     }
 
@@ -320,16 +307,11 @@ bool saveImageGray(const std::string& filename, const Matrix& Gray) {
 
     int h = rows(Gray);
     int w = cols(Gray);
-    size_t bufSize = static_cast<size_t>(w) * static_cast<size_t>(h);
-    unsigned char *buf = new unsigned char[bufSize];
+    unsigned char *buf = new unsigned char[h * w];
     size_t idx = 0;
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
-            double val = Gray[y][x];
-            // Clamp to [0, 1]
-            val = (val < 0.0) ? 0.0 : (val > 1.0) ? 1.0 : val;
-            int intensity = static_cast<int>(std::round(val * 255.0));
-            buf[idx++] = static_cast<unsigned char>(intensity);
+            buf[idx++] = Gray[y][x] * 255;
         }
     }
 
