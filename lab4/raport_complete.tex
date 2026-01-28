@@ -75,7 +75,6 @@
 }
 
 \author{
-    % WPISZ SWOJE DANE
     Marcel Duda\\
     Jan Gawroński\\
 }
@@ -88,44 +87,8 @@
 \thispagestyle{empty}
 \newpage
 
-\tableofcontents
-\newpage
-
 % ======================================================
-\section{Wstęp}
-% ======================================================
-
-\subsection{Cel zadania}
-
-Celem niniejszego laboratorium jest implementacja i analiza wydajności operacji na \textbf{hierarchicznych macierzach} (H-matrices). H-macierze stanowią efektywną strukturę danych umożliwiającą kompresję dużych macierzy gęstych poprzez wykorzystanie aproksymacji niskiego rzędu dla odpowiednio wybranych bloków.
-
-Główne zadania obejmują:
-\begin{itemize}
-    \item Implementację kompresji macierzy metodą hierarchiczną z wykorzystaniem dekompozycji SVD,
-    \item Implementację algorytmów mnożenia macierz-wektor oraz macierz-macierz w hierarchicznej reprezentacji,
-    \item Eksperymentalną analizę złożoności obliczeniowej oraz dokładności aproksymacji.
-\end{itemize}
-
-\subsection{Dane wejściowe}
-
-Badana macierz reprezentuje topologię \textbf{trójwymiarowej regularnej siatki} złożonej z elementów sześciennych. Każdy wierzchołek siatki odpowiada jednemu wierszowi/kolumnie macierzy. Elementy macierzy $A_{ij}$ są niezerowe wyłącznie dla sąsiednich wierzchołków w siatce:
-
-\begin{equation}
-A_{ij} = \begin{cases}
-4, & \text{jeśli } i = j \text{ (diagonal)} \\
-1, & \text{jeśli wierzchołki } i \text{ i } j \text{ są sąsiadami} \\
-0, & \text{w przeciwnym przypadku}
-\end{cases}
-\end{equation}
-
-Rozpatrywane rozmiary macierzy to $N = 2^{3k}$, gdzie $k \in \{2, 3, 4\}$, co odpowiada siatkom o wymiarach:
-\begin{itemize}
-    \item $k = 2$: siatka $4 \times 4 \times 4$, macierz $64 \times 64$,
-    \item $k = 3$: siatka $8 \times 8 \times 8$, macierz $512 \times 512$,
-    \item $k = 4$: siatka $16 \times 16 \times 16$, macierz $4096 \times 4096$.
-\end{itemize}
-
-\subsection{Metoda kompresji hierarchicznej}
+\section{Metoda kompresji hierarchicznej}
 
 Kompresja macierzy odbywa się poprzez \textbf{rekurencyjną dekompozycję drzewa czwórkowego} (quadtree):
 
@@ -145,22 +108,8 @@ Przyjęte parametry kompresji:
     \item Maksymalny rząd aproksymacji: $r = 8$,
     \item Tolerancja błędu SVD: $\epsilon = 10^{-6}$.
 \end{itemize}
-
-\subsection{Integracja z Laboratorium 3}
-
-Implementacja H-macierzy wykorzystuje metody kompresji opracowane w Laboratorium 3 (kompresja obrazów). Zintegrowano następujące komponenty:
-
-\begin{itemize}
-    \item \texttt{createTree()} -- budowa drzewa kompresji metodą SVD,
-    \item \texttt{drawCompression()} -- wizualizacja struktury hierarchicznej,
-    \item \texttt{saveImageGray()} -- eksport wizualizacji jako pliki PNG,
-    \item Biblioteki STB Image -- obsługa formatów graficznych (PNG, JPG).
-\end{itemize}
-
-Dzięki tej integracji możliwy jest eksport wizualizacji struktury H-macierzy do plików graficznych, co ułatwia analizę efektywności kompresji.
-
 % ======================================================
-\section{Część A: Mnożenie Macierz-Wektor}
+\section{Mnożenie Macierz-Wektor}
 % ======================================================
 
 \subsection{Algorytm}
@@ -215,10 +164,10 @@ Vector hMatrixVectorMult(const std::shared_ptr<HNode>& H, const Vector& x) {
             return zeroVector(H->rows);
         }
         
-        // First: temp = V * x (rank × cols) * (cols × 1) = (rank × 1)
+        // First: temp = V * x (rank x cols) * (cols x 1) = (rank x 1)
         Vector temp = matrixVectorMult(H->V, x);
         
-        // Then: Y = U * temp (rows × rank) * (rank × 1) = (rows × 1)
+        // Then: Y = U * temp (rows x rank) * (rank x 1) = (rows x 1)
         return matrixVectorMult(H->U, temp);
     }
     
@@ -252,8 +201,6 @@ Vector hMatrixVectorMult(const std::shared_ptr<HNode>& H, const Vector& x) {
 
 \subsubsection{Czasy wykonania}
 
-Tabela \ref{tab:vector_mult_times} przedstawia czasy wykonania mnożenia macierz-wektor dla różnych rozmiarów macierzy.
-
 \begin{table}[H]
 \centering
 \caption{Czasy wykonania operacji $H \cdot x$ [ms]}
@@ -269,12 +216,9 @@ $k$ & Rozmiar $N$ & Czas [ms] \\
 \end{tabular}
 \end{table}
 
-Rysunek \ref{fig:vector_mult_plot} przedstawia graficzną zależność czasu wykonania od rozmiaru macierzy wraz z dopasowaniem funkcji potęgowej.
-
 \begin{figure}[H]
 \centering
-% WSTAW WYKRES timing_plots.png (lewa część)
-\includegraphics[width=0.8\textwidth]{timing_plots.png}
+\includegraphics[width=0.8\textwidth]{timing_vector_plot.png}
 \caption{Czas wykonania mnożenia H-macierzy przez wektor w funkcji rozmiaru $N$}
 \label{fig:vector_mult_plot}
 \end{figure}
@@ -288,10 +232,8 @@ T(N) = \alpha \cdot N^\beta
 
 Wyniki regresji nieliniowej:
 \begin{itemize}
-    % WPISZ WYNIKI Z PROGRAMU visualize.py
-    \item Współczynnik $\alpha$: \texttt{[WARTOŚĆ]}
-    \item Wykładnik $\beta$: \texttt{[WARTOŚĆ]}
-    \item Interpretacja: Dla H-macierzy oczekiwana złożoność to $\mathcal{O}(N \log N)$, co odpowiada $\beta \approx 1.0$--$1.5$.
+    \item Współczynnik $\alpha$: 0.00184
+    \item Wykładnik $\beta$: 1.22
 \end{itemize}
 
 \subsection{Analiza błędu}
@@ -300,8 +242,6 @@ Błąd aproksymacji mierzony jest jako norma euklidesowa różnicy:
 \begin{equation}
 \text{Error}_{\text{vec}} = \|A \cdot x - H \cdot x\|_2 = \sqrt{\sum_{i=1}^{N} (A \cdot x)_i - (H \cdot x)_i)^2}
 \end{equation}
-
-Tabela \ref{tab:vector_errors} przedstawia błędy dla różnych rozmiarów.
 
 \begin{table}[H]
 \centering
@@ -318,16 +258,8 @@ $k$ & Rozmiar $N$ & $\|A \cdot x - H \cdot x\|_2$ \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-\centering
-% WSTAW WYKRES error_plots.png (lewa część)
-\includegraphics[width=0.75\textwidth]{error_plots.png}
-\caption{Błąd aproksymacji w mnożeniu macierz-wektor (skala logarytmiczna)}
-\label{fig:vector_errors}
-\end{figure}
-
 % ======================================================
-\section{Część B: Mnożenie Macierz-Macierz}
+\section{Mnożenie Macierz-Macierz}
 % ======================================================
 
 \subsection{Algorytm}
@@ -521,8 +453,6 @@ std::shared_ptr<HNode> hMatrixMult(const std::shared_ptr<HNode>& A,
 
 \subsubsection{Czasy wykonania podnoszenia do kwadratu}
 
-Tabela \ref{tab:matrix_mult_times} przedstawia czasy operacji $H^2 = H \cdot H$.
-
 \begin{table}[H]
 \centering
 \caption{Czasy wykonania operacji $H \cdot H$ [ms]}
@@ -540,8 +470,7 @@ $k$ & Rozmiar $N$ & Czas [ms] \\
 
 \begin{figure}[H]
 \centering
-% WSTAW WYKRES timing_plots.png (prawa część)
-\includegraphics[width=0.8\textwidth]{timing_plots.png}
+\includegraphics[width=0.8\textwidth]{timing_matrix_plot.png}
 \caption{Czas wykonania mnożenia H-macierzy przez H-macierz w funkcji rozmiaru $N$ (skala logarytmiczna)}
 \label{fig:matrix_mult_plot}
 \end{figure}
@@ -551,10 +480,8 @@ $k$ & Rozmiar $N$ & Czas [ms] \\
 Eksperymentalne dopasowanie funkcji $T(N) = \alpha \cdot N^\beta$:
 
 \begin{itemize}
-    % WPISZ WYNIKI Z PROGRAMU visualize.py
-    \item Współczynnik $\alpha$: \texttt{[WARTOŚĆ]}
-    \item Wykładnik $\beta$: \texttt{[WARTOŚĆ]}
-    \item Interpretacja: Dla H-macierzy oczekiwana złożoność to $\mathcal{O}(N^2)$ lub $\mathcal{O}(N^2 \log N)$, co odpowiada $\beta \approx 2.0$--$2.5$.
+    \item Współczynnik $\alpha$: 0.0474 
+    \item Wykładnik $\beta$: 1.5
 \end{itemize}
 
 \subsection{Analiza błędu}
@@ -574,192 +501,30 @@ $k$ & Rozmiar $N$ & $\|A^2 - H^2\|_F$ \\
 \midrule
 2 & 64 & $1.18 \times 10^{4}$ \\
 3 & 512 & $4.20 \times 10^{4}$ \\
-4 & 4096 & (nie obliczono) \\
+4 & 4096 & $1.28 \times 10^{5}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 % ======================================================
 \section{Wizualizacja struktury H-macierzy}
-% ======================================================
-
-\subsection{Metody wizualizacji}
-
-Implementacja oferuje trzy równoważne metody wizualizacji struktury hierarchicznej:
-
-\paragraph{Metoda 1: Bezpośrednia wizualizacja HNode}
-Funkcja \texttt{createVisualization()} tworzy macierz wizualizacyjną bezpośrednio ze struktury \texttt{HNode}, gdzie:
-\begin{itemize}
-    \item $1.0$ -- bloki podzielone rekurencyjnie (węzły wewnętrzne),
-    \item $0.0$ -- bloki skompresowane (węzły liścia, low-rank),
-    \item $0.5$ -- marker rzędu aproksymacji.
-\end{itemize}
-
-\paragraph{Metoda 2: Konwersja przez TreeNode}
-Konwersja \texttt{HNode} $\to$ \texttt{TreeNode} umożliwia użycie funkcji \texttt{drawCompression()} z Laboratorium 3, zapewniając kompatybilność między różnymi reprezentacjami.
-
-\paragraph{Metoda 3: Bezpośrednie użycie createTree}
-Funkcja \texttt{createTree()} z Lab 3 może być użyta bezpośrednio na macierzy gęstej, oferując alternatywną ścieżkę kompresji.
-
-\subsection{Eksport wizualizacji}
-
-Wszystkie wizualizacje mogą być eksportowane jako pliki PNG przy użyciu funkcji:
-\begin{lstlisting}[language=C++]
-// Eksport bezpośredni z HNode
-saveHMatrixVisualizationPNG(H, "structure.png");
-
-// Eksport przez TreeNode
-TreeNode* tree = hNodeToTreeNode(H);
-saveTreeVisualizationPNG(tree, n, n, "structure.png");
-
-// Lub poprzez macierz wizualizacyjną
-Matrix vis = createVisualization(H);
-saveImageGray("structure.png", vis);
-\end{lstlisting}
-
-\subsection{Wyniki wizualizacji}
-
-Rysunki \ref{fig:vis_method1}--\ref{fig:vis_method3} przedstawiają strukturę hierarchicznej dekompozycji macierzy $64 \times 64$ ($k=2$) przy użyciu trzech różnych metod wizualizacji zintegrowanych z Laboratorium 3. Obszary białe reprezentują bloki podzielone rekurencyjnie, podczas gdy obszary czarne oznaczają bloki skompresowane do postaci niskiego rzędu.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.7\textwidth]{hmatrix_vis_method1.png}
-\caption{Metoda 1: Bezpośrednia wizualizacja z HNode przy użyciu \texttt{createVisualization()}. Wyraźnie widoczne bloki diagonalne oraz struktura hierarchiczna.}
+\includegraphics[width=0.7\textwidth]{hmatrix_structure_k2.png}
 \label{fig:vis_method1}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.7\textwidth]{hmatrix_vis_method2.png}
-\caption{Metoda 2: Wizualizacja przez konwersję HNode $\to$ TreeNode z wykorzystaniem \texttt{drawCompression()} z Lab 3. Identyczna struktura uzyskana alternatywną metodą.}
+\includegraphics[width=0.7\textwidth]{hmatrix_structure_k3.png}
 \label{fig:vis_method2}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.7\textwidth]{hmatrix_vis_method3.png}
-\caption{Metoda 3: Wizualizacja przy użyciu \texttt{createTree()} bezpośrednio z macierzy gęstej. Pełna kompatybilność z implementacją Lab 3.}
+\includegraphics[width=0.7\textwidth]{hmatrix_structure_k4.png}
 \label{fig:vis_method3}
 \end{figure}
-
-\paragraph{Porównanie metod}
-Wszystkie trzy metody generują identyczne wizualizacje, co potwierdza poprawność implementacji i pełną kompatybilność między strukturami \texttt{HNode} i \texttt{TreeNode}. Różnica polega jedynie na ścieżce obliczeniowej:
-\begin{itemize}
-    \item Metoda 1 -- najszybsza, wykorzystuje gotową strukturę HNode,
-    \item Metoda 2 -- wymaga konwersji, ale pozwala na użycie funkcji z Lab 3,
-    \item Metoda 3 -- niezależna od HNode, alternatywna implementacja kompresji.
-\end{itemize}
-
-\subsection{Analiza struktury}
-
-Z wizualizacji można odczytać następujące właściwości:
-\begin{itemize}
-    \item \textbf{Głębokość dekompozycji} -- liczba poziomów hierarchii zależy od rozmiaru macierzy i parametru $\epsilon$,
-    \item \textbf{Stopień kompresji} -- stosunek obszaru czarnego do białego odpowiada efektywności kompresji,
-    \item \textbf{Rozkład bloków} -- macierze z topologią 3D siatki wykazują charakterystyczny wzór kompresji wzdłuż diagonali,
-    \item \textbf{Bloki off-diagonal} -- zazwyczaj lepiej podatne na kompresję niż bloki diagonalne ze względu na mniejszą korelację między odległymi wierzchołkami.
-\end{itemize}
-
-% ======================================================
-\section{Wnioski}
-% ======================================================
-
-\subsection{Efektywność kompresji}
-
-Hierarchiczna reprezentacja macierzy pozwala znacząco zredukować zużycie pamięci:
-\begin{itemize}
-    \item Gęsta macierz $N \times N$ wymaga $\mathcal{O}(N^2)$ pamięci,
-    \item H-macierz z rzędem $r$ wymaga około $\mathcal{O}(N r \log N)$ pamięci.
-    \item Dla $N = 4096$ i $r = 8$ redukcja pamięci wynosi:
-    \begin{equation}
-    \text{Współczynnik kompresji} = \frac{N^2}{N r \log_2 N} = \frac{4096}{8 \cdot 12} \approx 43
-    \end{equation}
-\end{itemize}
-
-% MIEJSCE NA WŁASNE WNIOSKI:
-% - Porównaj eksperymentalne wykładniki β z teoretycznymi
-% - Oceń wpływ tolerancji epsilon na dokładność
-% - Przedyskutuj trade-off między kompresją a precyzją
-% - Zasugeruj potencjalne zastosowania (np. równania różniczkowe, metody elementów skończonych)
-
-\subsection{Dokładność aproksymacji}
-
-Na podstawie wyników eksperymentalnych:
-\begin{itemize}
-    \item Błędy mnożenia macierz-wektor są rzędu \texttt{[WARTOŚĆ]},
-    \item Błędy mnożenia macierz-macierz rosną wraz z rozmiarem ze względu na kumulację błędów w rekurencji,
-    \item Tolerancja $\epsilon = 10^{-6}$ zapewnia \texttt{[OPIS JAKOŚCI APROKSYMACJI]}.
-\end{itemize}
-
-\subsection{Perspektywy rozwoju}
-
-Możliwe kierunki dalszych badań:
-\begin{enumerate}
-    \item Implementacja adaptacyjnego wyboru rzędu aproksymacji $r$ w zależności od lokalnej złożoności macierzy,
-    \item Paralelizacja algorytmów mnożenia (struktura drzewa naturalne wspiera równoległość),
-    \item Zastosowanie alternatywnych metod kompresji (np. Adaptive Cross Approximation),
-    \item Implementacja innych operacji algebraicznych (faktoryzacja LU, odwracanie),
-    \item Rozszerzenie wizualizacji o interaktywne narzędzia analizy struktury,
-    \item Zastosowanie H-macierzy do kompresji obrazów wielospektralnych (rozszerzenie Lab 3).
-\end{enumerate}
-
-\subsection{Uwagi implementacyjne}
-
-\paragraph{Integracja z Laboratorium 3}
-Ponowne wykorzystanie kodu z Lab 3 (kompresja obrazów) znacząco ułatwiło implementację:
-\begin{itemize}
-    \item Funkcje SVD i power iteration były już gotowe i przetestowane,
-    \item Struktura \texttt{TreeNode} okazała się kompatybilna z \texttt{HNode},
-    \item Funkcje wizualizacji działały bez modyfikacji,
-    \item Biblioteki STB Image umożliwiły łatwy eksport do formatów graficznych.
-\end{itemize}
-
-\paragraph{Narzędzia pomocnicze}
-Opracowano program demonstracyjny \texttt{visualize\_example.cpp}, który:
-\begin{itemize}
-    \item Ilustruje trzy metody wizualizacji,
-    \item Generuje pliki PNG dla wszystkich metod,
-    \item Wyświetla fragment wizualizacji w terminalu (znaki Unicode),
-    \item Może służyć jako szablon dla użytkowników biblioteki.
-\end{itemize}
-
-% ======================================================
-\section*{Podsumowanie}
-\addcontentsline{toc}{section}{Podsumowanie}
-% ======================================================
-
-W ramach laboratorium zaimplementowano i przebadano wydajność hierarchicznej reprezentacji macierzy wraz z operacjami mnożenia macierz-wektor oraz macierz-macierz. Wyniki eksperymentalne potwierdzają teoretyczne przewidywania dotyczące złożoności obliczeniowej: 
-\begin{itemize}
-    \item $\mathcal{O}(N \log N)$ dla mnożenia przez wektor,
-    \item $\mathcal{O}(N^2)$ dla mnożenia macierzy.
-\end{itemize}
-
-H-macierze stanowią efektywne narzędzie do reprezentacji i operowania na dużych macierzach o specyficznej strukturze, szczególnie użyteczne w kontekście numerycznego rozwiązywania równań różniczkowych cząstkowych metodami brzegowymi (BEM) oraz metodą elementów skończonych (FEM).
-
-% ======================================================
-% BIBLIOGRAFIA (opcjonalnie)
-% ======================================================
-\begin{thebibliography}{9}
-\bibitem{hackbusch99}
-W. Hackbusch,
-\textit{A Sparse Matrix Arithmetic Based on H-Matrices. Part I: Introduction to H-Matrices},
-Computing, vol. 62, pp. 89--108, 1999.
-
-\bibitem{bebendorf08}
-M. Bebendorf,
-\textit{Hierarchical Matrices: A Means to Efficiently Solve Elliptic Boundary Value Problems},
-Springer, 2008.
-
-\bibitem{halko11}
-N. Halko, P. G. Martinsson, J. A. Tropp,
-\textit{Finding Structure with Randomness: Probabilistic Algorithms for Constructing Approximate Matrix Decompositions},
-SIAM Review, vol. 53, no. 2, pp. 217--288, 2011.
-
-\bibitem{stb_image}
-Sean Barrett,
-\textit{stb\_image.h: Public domain image loader},
-\url{https://github.com/nothings/stb}, 2023.
-\textit{Używane do wizualizacji struktury H-macierzy.}
-\end{thebibliography}
 
 \end{document}
